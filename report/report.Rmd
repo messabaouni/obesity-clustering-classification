@@ -1,0 +1,2215 @@
+---
+title: "Reporte final TCM:  Análisis de la Obesidad"
+author: "Mohammed Essabaouni"
+output:
+  html_document: default
+  pdf_document: default
+editor_options:
+  markdown:
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+options(warn = -1)
+
+# --- Text Processing & Visualization ---
+library(NLP)            
+library(RColorBrewer)  
+library(tm)             
+library(wordcloud)      
+
+# --- Machine Learning & Modeling ---
+library(neuralnet)      # Neural network modeling
+library(e1071)          # SVM and other machine learning tools
+library(caret)          # Model training and evaluation
+library(naivebayes)     # Naive Bayes classification
+
+# --- Clustering & Dimensionality Reduction ---
+library(cluster)        
+library(flexclust)      
+library(NbClust)        
+library(clValid)        
+library(factoextra)     
+library(FactoMineR)     
+library(dendextend)     
+
+# --- Data Visualization & Analysis ---
+library(scatterplot3d)  
+library(corrplot)       
+library(ineq)           
+library(RColorBrewer)   
+library(deldir)       
+library(gridExtra)
+
+# --- Classification Algorithms ---
+library(kknn)           # Weighted k-Nearest Neighbors
+library(class)          # Basic k-NN classifier
+library(party)          # Conditional inference trees
+library(partykit)       # Tree pruning and extended functionality
+library(randomForest)   # Random Forest
+library(tree)
+
+# --- Data Handling & Utilities ---
+library(rvest)          
+library(tidyverse)      
+library(dplyr)        
+library(knitr)
+library(kableExtra)
+library(tibble)
+
+```
+
+
+
+
+
+# Introducción
+
+En este estudio nos proponemos a analizar el impacto de los hábitos de vida en los niveles de obesidad mediante técnicas de análisis estadístico multidimensional y algoritmos de aprendizaje automático, tanto supervisado como no supervisado.
+El objetivo principal es identificar patrones y relaciones significativas entre factores como la alimentación, la actividad física y el entorno familiar, con el fin de aportar evidencia útil para intervenciones en salud pública y estrategias de nutrición personalizadas.
+
+Para ello, trabajaremos con el Obesity Prediction Dataset, que recoge información de individuos provenientes de México, Perú y Colombia.
+Este conjunto de datos incluye variables demográficas (edad, género), antecedentes familiares, frecuencia de consumo de alimentos y nivel de actividad física, lo que lo convierte en una base adecuada para explorar el fenómeno de la obesidad desde una perspectiva integral.
+
+## Metodología y técnicas empleadas
+
+El enfoque del análisis combina distintas herramientas de análisis exploratorio, reducción de dimensiones, agrupamiento y clasificación, cada una con un propósito específico en el estudio.
+A continuación, se detalla el rol de cada técnica en el marco general del análisis:
+
+### 1. Análisis textual
+
+En una primera fase, realizamos un análisis de textos provenientes de documentos oficiales sobre obesidad.
+Esto nos permitió identificar los términos clave más frecuentes y enmarcar nuestro análisis en el contexto actual del discurso institucional sobre esta problemática.
+
+### 2. Análisis de Correspondencias (CA/MCA)
+
+El análisis de correspondencias, tanto simple como múltiple, nos ayudará a representar gráficamente la relación entre variables categóricas como el género, los antecedentes familiares de sobrepeso y los hábitos alimentarios.
+El objetivo es detectar asociaciones relevantes, por ejemplo, si determinados perfiles presentan mayor propensión a la obesidad o cómo ciertos factores como el medio de transporte utilizado se relacionan con la actividad física.
+
+### 3. Análisis de Componentes Principales (PCA)
+
+Dado que el conjunto de datos contiene múltiples variables numéricas (edad, peso, número de comidas, frecuencia de ejercicio, entre otras), emplearemos PCA para reducir la dimensionalidad.
+Esta técnica nos permitirá identificar las variables que más contribuyen a la variabilidad del conjunto y, por tanto, los factores de mayor relevancia en la explicación de los niveles de obesidad.
+
+### 4. Métodos de agrupamiento (clustering)
+
+Se aplicarán dos enfoques complementarios:
+
+-   Clustering jerárquico: Permitirá agrupar a los individuos en función de la similitud entre sus hábitos y características, sin necesidad de establecer previamente el número de grupos.
+
+-   K-means: Nos servirá para formar clústeres bien definidos que reflejen distintos perfiles de obesidad basados en los estilos de vida.
+
+### 5. Métodos de clasificación
+
+La variable objetivo del dataset, NObeyesdad, clasifica a los individuos según su nivel de obesidad.
+Para predecir esta variable, aplicaremos distintos modelos de clasificación:
+
+-   KNN (K-Nearest Neighbors): Basado en la similitud entre individuos, útil para evaluar si hábitos similares implican niveles de obesidad parecidos.
+
+-   Naive Bayes: Permite calcular la probabilidad de pertenecer a una determinada categoría de obesidad, dada la información disponible de cada individuo.
+
+-   Random Forest: Este modelo basado en árboles de decisión nos ofrecerá interpretabilidad y robustez al identificar las variables más influyentes en la clasificación.
+
+-   SVM (Support Vector Machines): Será utilizado para definir las fronteras más eficaces entre categorías de obesidad, optimizando la separación entre clases.
+
+### Técnicas adicionales
+
+-   Regresión logística: Se considerará como complemento para estimar probabilidades asociadas a los niveles de obesidad en función de variables predictoras.
+
+-   Redes Neuronales (MLP): Este modelo permitirá capturar relaciones no lineales complejas entre variables, con el objetivo de mejorar la precisión de clasificación en contextos más sofisticados.
+
+## Objetivos y propósito final
+
+Nuestro propósito es entender de forma rigurosa y detallada cómo se vinculan los distintos factores del estilo de vida con el riesgo de obesidad.
+Al aplicar un conjunto amplio de técnicas, buscamos extraer conocimiento útil que pueda ser aplicado a la mejora de políticas de prevención, educación nutricional y estrategias personalizadas de salud.
+Si logramos identificar variables clave y construir modelos predictivos sólidos, podremos contribuir a diseñar soluciones prácticas con impacto real en la calidad de vida de las personas
+
+# 1. Análisis Textual
+
+Este análisis toma como base el texto oficial publicado por la Organización Mundial de la Salud (OMS), disponible en la página de la Clínica Barcelona, sobre las causas y factores de riesgo de la obesidad.
+El objetivo principal es identificar los términos más frecuentes mediante una nube de palabras, lo que nos permitirá contextualizar el problema y extraer los conceptos clave que aparecen con mayor recurrencia en la literatura institucional.
+
+```{r}
+############################################################
+# Analisis Textual
+############################################################
+
+
+# URL de la página de la OMS
+url <- "https://www.clinicbarcelona.org/asistencia/enfermedades/obesidad/causas-y-factores-de-riesgo"
+
+# Extracción del texto
+# Leer el contenido textual principal
+pagina <- read_html(url)
+texto <- pagina %>% html_elements("p") %>% html_text()
+texto <- paste(texto, collapse = " ")  # Unimos todos los párrafos en un solo texto
+```
+
+```{r message=FALSE, warning=FALSE}
+## Limpieza del texto y creación del corpus
+
+# Palabras personalizadas a eliminar
+mis_stopwords <- c("obesidad", "sobrepeso", "puede", "factores")
+
+# Crear corpus y limpiar
+corpus <- Corpus(VectorSource(texto))
+corpus <- tm_map(corpus, content_transformer(tolower))          # Minusculas
+corpus <- tm_map(corpus, removePunctuation)                     # Quitar puntuación
+corpus <- tm_map(corpus, removeNumbers)                         # Quitar números
+corpus <- tm_map(corpus, removeWords, c(stopwords("spanish"), mis_stopwords))     # Quitar palabras vacías comunes en español
+corpus <- tm_map(corpus, stripWhitespace)                       # Espacios innecesarios
+
+# Matriz de términos
+tdm <- TermDocumentMatrix(corpus)
+matriz <- as.matrix(tdm)
+frecuencias <- sort(rowSums(matriz), decreasing = TRUE)
+datos <- data.frame(word = names(frecuencias), freq = frecuencias)
+```
+
+```{r warning=FALSE}
+## Nube de palabras
+
+# Crear paleta de colores y graficar la nube
+paleta <- brewer.pal(8, "Dark2")
+wordcloud(words = datos$word, freq = datos$freq, min.freq = 2,
+          scale = c(6, 0.5), max.words = 100,
+          random.order = FALSE, rot.per = 0.2, 
+          colors = paleta)
+```
+
+### **Descripción del análisis y del código utilizado:**
+
+#### El procedimiento se divide en cuatro etapas principales:
+
+1.  Carga de bibliotecas necesarias
+
+Para llevar a cabo el análisis textual se utilizan los siguientes paquetes de R:
+
+-   rvest: para extraer contenido HTML directamente desde una página web.
+
+-   tm: proporciona herramientas para el preprocesamiento y limpieza del texto.
+
+-   wordcloud: genera la visualización de la nube de palabras.
+
+-   RColorBrewer: ofrece paletas de colores para mejorar la estética del gráfico.
+
+2.  Extracción y consolidación del texto
+
+Se accede al contenido de la página web mediante read_html() y se extraen todos los párrafos con html_elements("p").
+Posteriormente, se concatenan en una única cadena para facilitar su análisis.
+
+3.  Preprocesamiento del texto
+
+Se crea un corpus textual y se realiza una limpieza sistemática, que incluye:
+
+-   Conversión a minúsculas.
+
+-   Eliminación de puntuación, números y espacios innecesarios.
+
+-   Supresión de palabras vacías comunes del idioma español (stopwords("spanish")) y de términos específicos como “obesidad” o “sobrepeso” para evitar que dominen la visualización.
+
+4.  Generación de la nube de palabras
+
+A partir de una matriz de términos (TermDocumentMatrix), se calcula la frecuencia de cada palabra.
+Las más frecuentes se visualizan en una nube de palabras utilizando una paleta de colores (Dark2), destacando aquellas que aparecen con mayor regularidad.
+
+**Resultados obtenidos en la nube de palabras:**
+
+La nube de palabras generada revela la alta presencia de términos como calorías, ejercicio, alimentos, grasa, causas, alto, actividades, forma y estilo.
+Estos conceptos están directamente vinculados con los principales factores de riesgo identificados por la OMS, y validan la dirección de nuestro análisis posterior.
+En conjunto, esta técnica nos ofrece un punto de partida sólido para profundizar el estudio a través de métodos estadísticos más avanzados, como el análisis de correspondencias o los modelos de clasificación.
+
+3.  Clasificación no supervisada
+
+# 2. Análisis de Correspondencias (CA)
+
+
+
+```{r}
+rm(list=ls())
+
+# Cargar el dataset de obesidad
+ob <- read.csv("../data/obesity.csv", 
+                         header = TRUE, sep = ",", stringsAsFactors = FALSE)
+```
+
+
+```{r ca}
+
+tab <- table(ob$MTRANS, ob$NObeyesdad)
+res.ca <- CA(tab, graph = FALSE)
+fviz_eig(res.ca, addlabels = TRUE, ggtheme = theme_minimal())
+fviz_ca_biplot(res.ca, repel = TRUE, ggtheme = theme_minimal()) +
+  labs(title = "CA biplot – Modo de transporte vs Obesidad")
+fviz_ca_row(res.ca, repel = TRUE, col.row = "cos2") +
+  labs(title = "Filas (MTRANS) – calidad de representación")
+fviz_ca_col(res.ca, repel = TRUE, col.col = "contrib") +
+  labs(title = "Columnas (Obesidad) – contribuciones")
+
+```
+
+El análisis de correspondencias (CA) aplicado a la tabla de contingencia entre el modo de transporte (MTRANS) y la categoría de obesidad (NObeyesdad) nos permite explorar asociaciones entre estas variables categóricas.
+
+En el gráfico de barras de inercia (Scree plot), observamos que las dos primeras dimensiones explican conjuntamente el 97.8% de la variabilidad (53.1% y 44.7% respectivamente).Esto indica que podemos interpretar el plano factorial bidimensional con gran fidelidad respecto a la estructura de dependencia entre las categorías.
+
+El biplot resultante del CA muestra cómo se distribuyen las modalidades de ambas variables en este plano.
+Se observan agrupamientos interesantes: las personas que caminan o usan bicicleta están cercanas a la categoría "Normal_Weight", lo que sugiere una asociación positiva entre transporte activo y un peso saludable.
+En contraste, el uso del automóvil se sitúa junto a las categorías "Obesity_Type_II" y "Obesity_Type_III", lo cual apunta a una posible relación entre transporte pasivo y niveles más altos de obesidad.
+Las modalidades como "Public Transportation" y "Insufficient_Weight" se encuentran próximas al centro del gráfico, lo que indica una asociación débil o ambigua.
+
+En cuanto a la calidad de representación de las modalidades de MTRANS en el plano bidimensional, las categorías "Bike", "Walking" y "Motorbike" presentan valores de cos² cercanos a 1, lo que implica que están muy bien representadas por estas dos dimensiones.
+
+Por el contrario, "Automobile" y "Public Transportation" tienen cos² más bajos, lo que indica que su representación en el plano es menos precisa y podrían requerir dimensiones adicionales para una caracterización adecuada.
+
+Finalmente, al observar las contribuciones de las categorías de obesidad a la construcción de los ejes factoriales, se destaca que "Obesity_Type_III" y "Normal_Weight" son las modalidades que más influyen en la formación de los dos primeros ejes.
+Esto sugiere que los extremos del espectro de obesidad (peso normal y obesidad severa) son los que más contribuyen a explicar la variación conjunta de las variables.
+Estas categorías funcionan, por tanto, como polos que ayudan a entender mejor la distribución de los modos de transporte según el nivel de obesidad.
+
+## 2.1 MCA
+
+```{r}
+cat_vars <- ob[, c("Gender", "family_history_with_overweight", "FAVC", 
+                   "CAEC", "SMOKE", "SCC", "CALC", "MTRANS", "NObeyesdad")]
+cat_vars[] <- lapply(cat_vars, factor)
+
+res.mca <- MCA(cat_vars, graph = FALSE)
+
+inercia <- res.mca$eig
+colnames(inercia) <- c("Eigenvalue", "Percentage of variance", "Cumulative percentage")
+
+fviz_screeplot(res.mca, 
+               addlabels = TRUE,
+               ylim = c(0, max(inercia[, 2]) + 5),
+               ggtheme = theme_minimal()) +
+  labs(title = "Porcentaje de inercia explicada por cada dimensión",
+       y = "Porcentaje de varianza",
+       x = "Dimensiones")
+
+
+shorten_labels <- function(x, max.length = 15) {
+  sapply(x, function(label) {
+    if (nchar(label) > max.length) {
+      paste0(substr(label, 1, max.length), "…")
+    } else {
+      label
+    }
+  })
+}
+
+custom_contrib_plot <- function(res.mca, dim, top = 20) {
+  fviz_contrib(res.mca, choice = "var", axes = dim, top = top) +
+    scale_x_discrete(labels = shorten_labels) +
+    theme_minimal(base_size = 10) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+          plot.title = element_text(size = 12))
+}
+
+# Crear gráficos individuales
+g1 <- custom_contrib_plot(res.mca, 1)
+g2 <- custom_contrib_plot(res.mca, 2)
+g3 <- custom_contrib_plot(res.mca, 3)
+g4 <- custom_contrib_plot(res.mca, 4)
+
+# Mostrar en layout 2x2
+grid.arrange(g1, g2, g3, g4, ncol = 2)
+
+```
+El análisis de correspondencias múltiples (MCA) aplicado a las variables categóricas del conjunto de datos sobre obesidad permite identificar patrones de comportamiento vinculados al peso corporal. Según el gráfico de inercia, las cuatro primeras dimensiones explican en conjunto cerca del 33% de la variabilidad, lo que resulta razonable en este tipo de análisis donde la información se distribuye entre varios ejes. Por este motivo, se optó por centrarse en las cuatro primeras dimensiones para la interpretación.
+
+La primera dimensión, que representa un 10.9% de la varianza, distingue claramente entre personas con hábitos saludables y aquellas con conductas asociadas al sobrepeso. Contribuyen especialmente a este eje categorías como “no consumo de comida rápida”, “no picar entre horas” o “peso normal”, frente a quienes tienen sobrepeso y conductas menos saludables. En esencia, esta dimensión contrapone estilos de vida distintos en relación con la alimentación.
+
+La segunda dimensión, que añade un 8.5%, parece reflejar diferencias más marcadas entre tipos de obesidad severa y normopeso, influida además por el sexo y el tipo de transporte habitual. Destacan en esta dimensión las categorías asociadas a obesidad grave y al uso del automóvil, así como las etiquetas “hombre” y “mujer”, lo que sugiere un componente de género en la forma en que se distribuye el exceso de peso.
+
+La tercera dimensión (6.9%) introduce un matiz interesante relacionado con la frecuencia de comida, el nivel de hidratación y estados intermedios como el sobrepeso leve o el peso insuficiente. Aquí aparecen como relevantes quienes no comen entre horas, consumen poca agua o tienen peso por debajo del normal, lo que revela contrastes más sutiles en las rutinas diarias.
+
+Por último, la cuarta dimensión (6.4%) parece centrarse en aspectos relacionados con la actividad física y ciertos extremos de comportamiento. En este eje destacan personas que siempre comen entre horas o nunca lo hacen, quienes caminan como medio de transporte, y también quienes presentan pesos extremos, tanto bajos como muy altos.
+
+
+```{r}
+# Gráfico de individuos con el grupo coloreado
+fviz_mca_ind(res.mca,
+             label = "none",           
+             habillage = cat_vars$NObeyesdad,  # Color según obesidad
+             addEllipses = FALSE,     
+             ellipse.level = 0.95,
+             palette = "Set1",        
+             ggtheme = theme_minimal(), 
+             repel = TRUE,
+             pointsize = 2) +
+  labs(title = "MCA - Individuos coloreados por nivel de obesidad")
+
+# Gráfico de variables
+fviz_mca_var(res.mca, 
+             col.var = "contrib", 
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE, 
+             ggtheme = theme_minimal()) +
+  labs(title = "MCA - Variables")
+
+```
+El primer gráfico muestra la distribución de los individuos en el espacio de las dos primeras dimensiones del análisis MCA, coloreados según su nivel de obesidad. Se observan ciertos agrupamientos por tipo de peso, aunque no son perfectamente definidos, lo cual es esperable dado que el comportamiento humano está influido por múltiples factores. Sin embargo, sí se aprecia cierta separación: por ejemplo, los individuos con peso normal (azul) tienden a concentrarse en el centro-derecha, mientras que los casos más graves de obesidad (como Obesity_Type_III, en naranja) aparecen más desplazados hacia los extremos del espacio, especialmente hacia la parte inferior izquierda. Los casos de Overweight_Level_I y Overweight_Level_II (amarillo y marrón) se ubican más cerca del centro, lo que sugiere que sus perfiles comparten elementos tanto con los normopeso como con los obesos.
+
+El segundo gráfico representa la posición de las categorías de las variables en el mismo espacio dimensional. Aquí podemos identificar claramente qué factores están más relacionados con estilos de vida saludables y cuáles con comportamientos de riesgo. Por ejemplo, las categorías CALC_Always, Walking, FAVC_no (no consumir comida rápida) y family_history_with_overweight_no se agrupan en la parte derecha, muy cerca de la categoría Normal_Weight, lo que indica una fuerte asociación con un peso saludable. En contraste, Obesity_Type_III aparece aislada en el extremo inferior izquierdo, junto a categorías como FAVC_yes, family_history_with_overweight_yes, y CAEC_Frequently, que representan hábitos alimentarios poco saludables y antecedentes familiares de obesidad.
+
+También destacan otras variables como el tipo de transporte (Motorbike, Automobile, Walking), que reflejan distintos niveles de actividad física en la rutina diaria, y factores como el género o el hábito de fumar, que aportan matices adicionales al perfil de cada grupo.
+
+# 3. Análisis de Componentes Principales (PCA)
+
+```{r pca}
+ob <- ob %>% mutate(across(where(is.character), as.factor))
+num_vars <- ob %>% select(where(is.numeric)) %>% na.omit()
+pca_res <- PCA(num_vars, scale.unit = TRUE, graph = FALSE)
+fviz_eig(pca_res, addlabels = TRUE, barfill = "grey")
+fviz_pca_var(pca_res, col.var = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE)
+ob$NObeyesdad <- as.factor(ob$NObeyesdad)
+fviz_pca_ind(pca_res, 
+             geom.ind = "point",
+             fill.ind = ob$NObeyesdad,
+             col.ind = ob$NObeyesdad, 
+             palette = "jco", 
+             legend.title = "Clase IMC")
+```
+
+El análisis de componentes principales (PCA) se realizó sobre las variables numéricas del conjunto de datos con el objetivo de reducir su dimensionalidad y explorar patrones latentes.
+El scree plot indica que el primer componente principal (Dim1) explica un 22.6% de la varianza total, seguido por Dim2 con un 18.7%.
+Juntos, estos dos componentes retienen un 41.3% de la información original.
+Aunque no es una proporción especialmente alta, es suficiente para visualizar relaciones generales entre individuos y variables.
+La caída relativamente progresiva de la varianza sugiere que no hay un componente dominante, lo que implica una estructura multivariable dispersa.
+
+El gráfico de contribuciones de las variables a los dos primeros componentes permite identificar qué variables están más relacionadas con las dimensiones.
+En Dim1, se destacan positivamente Weight y Height, que apuntan en direcciones similares, indicando que ambas están asociadas con esta dimensión.
+También aparece CH2O (consumo de agua) en esta dimensión, pero más cercano al origen, por lo que su contribución es más moderada.
+Por otro lado, la Dim2 está influenciada principalmente por Age (edad) y, en menor medida, por TUE (uso de tecnología) y FCVC (consumo de vegetales).
+Las direcciones de las flechas muestran correlaciones: por ejemplo, Weight y Height están positivamente correlacionadas, mientras que variables como NCP (número de comidas) o FAF (actividad física) muestran direcciones diferentes, reflejando asociaciones menos claras.
+
+El gráfico de individuos proyectados sobre los dos primeros componentes muestra una nube de puntos bastante dispersa, sin agrupamientos claros a simple vista.
+Esto sugiere que no hay una separación evidente entre clases (por ejemplo, categorías de obesidad) en este espacio reducido, al menos no sin considerar más componentes.
+
+En resumen, el PCA revela que las variables antropométricas (peso y altura) dominan la primera dimensión, mientras que los factores de estilo de vida y demográficos como la edad y la actividad física inciden más en la segunda.
+Aunque la representación bidimensional no captura toda la complejidad del conjunto, permite una visualización inicial útil de las relaciones entre variables y sujetos.
+
+# 4. Análisis de Clustering Jerárquico
+
+```{r clustering}
+ob_num <- na.omit(select(ob, where(is.numeric)))
+ob_s <- scale(ob_num)
+d_euc <- dist(ob_s, method = "euclidean")
+d_man <- dist(ob_s, method = "manhattan")
+hc_EW <- hclust(d_euc, method = "ward.D2")
+hc_EC <- hclust(d_euc, method = "complete")
+hc_MW <- hclust(d_man, method = "ward.D2")
+hc_MC <- hclust(d_man, method = "complete")
+
+plot(hc_EW, main = "Euclidiana – Ward")
+plot(hc_EC, main = "Euclidiana – Completo")
+plot(hc_MW, main = "Manhattan – Ward")
+plot(hc_MC, main = "Manhattan – Completo")
+
+dend_list <- dendlist("E-W" = as.dendrogram(hc_EW),
+                      "E-C" = as.dendrogram(hc_EC),
+                      "M-W" = as.dendrogram(hc_MW),
+                      "M-C" = as.dendrogram(hc_MC))
+cors <- cor.dendlist(dend_list)
+corrplot(cors, method = "pie", type = "lower")
+```
+
+Se aplicó un análisis de clustering jerárquico sobre las variables numéricas estandarizadas, utilizando dos métricas de distancia (Euclidiana y Manhattan) y dos métodos de enlace (Ward y completo). El objetivo es identificar agrupaciones naturales de individuos con patrones similares en sus características.
+
+El dendrograma generado mediante el método de Ward con distancia Euclidiana muestra una estructura jerárquica clara, con divisiones bien definidas en los niveles superiores del árbol.Este método busca minimizar la varianza intra-cluster, por lo que tiende a formar grupos compactos y de tamaño similar. La estructura del árbol sugiere que tres o cuatro agrupaciones principales podrían ser una elección razonable para segmentar la población.
+
+Por otro lado, el dendrograma de distancia Euclidiana con método completo genera una estructura más alargada y encadenada, lo que sugiere la presencia de agrupamientos menos compactos. Este método maximiza la distancia entre elementos de diferentes clusters, por lo que es más sensible a valores extremos y tiende a producir clusters más alargados y heterogéneos.
+
+El dendrograma con distancia Manhattan y método de Ward es muy similar al euclidiano-Ward, pero con mayores alturas, lo que se traduce en distancias acumuladas mayores debido al tipo de métrica. A pesar de ello, la estructura general del agrupamiento se conserva, lo que indica que ambas métricas capturan patrones similares en los datos.
+
+Para comparar las similitudes entre los distintos agrupamientos obtenidos, se utilizó una matriz de correlaciones entre dendrogramas.
+Esta se representa mediante un gráfico de pastel que muestra los coeficientes de correlación entre cada par de dendrogramas. Se observa que el dendrograma Euclidiano-Ward está altamente correlacionado con los otros métodos, en particular con Manhattan-Ward, lo que valida la consistencia de la estructura encontrada por estos enfoques.
+
+Las correlaciones más bajas se observan entre métodos que utilizan métricas y algoritmos de enlace muy diferentes (por ejemplo, Euclidiano-Completo y Manhattan-Ward), lo cual es esperable.
+
+En resumen, el método Ward con distancia Euclidiana ofrece una estructura de clustering estable y bien definida, con una alta coherencia con otros métodos.
+Este puede considerarse como el enfoque más adecuado para representar la estructura de los datos y fundamentar decisiones posteriores como la elección del número de clusters o su visualización sobre ejes de PCA.
+
+### Visualización en PCA y varianza explicada
+
+```{r cluster-pca}
+k <- 3
+ct_EW <- cutree(hc_EW, k)
+pca <- PCA(ob_s, graph = FALSE)
+x <- pca$ind$coord[,1]
+y <- pca$ind$coord[,2]
+plot(x, y, col = ct_EW, pch = 19, main = "E-W")
+choice <- ct_EW
+IB <- 0
+grand_mean <- colMeans(ob_num)
+for(i in 1:k){
+  idx <- which(choice == i)
+  n <- length(idx)
+  grp_mean <- colMeans(ob_num[idx, , drop = FALSE])
+  IB <- IB + n * sum((grp_mean - grand_mean)^2)
+}
+IT <- sum(apply(scale(ob_num, scale = FALSE)^2, 2, sum))
+VE <- round(100 * IB / IT, 2)
+cat("Varianza explicada entre clusters:", VE, "%\n")
+```
+
+Una vez identificado el número óptimo de clusters (en este caso, k = 3) utilizando el método de Ward con distancia euclidiana, se proyectaron los individuos sobre el plano definido por los dos primeros componentes principales del PCA. El objetivo de esta visualización es examinar si los grupos obtenidos presentan una separación clara en el espacio de menor dimensión, lo cual facilita su interpretación.
+
+El gráfico muestra cómo los individuos se distribuyen según sus coordenadas en el primer (x) y segundo (y) componente principal. Cada punto representa un individuo, coloreado según el cluster al que fue asignado.
+
+En esta proyección, se observa que los tres grupos presentan una separación razonable, aunque no completamente limpia.
+En particular, uno de los clusters (el grupo representado en verde) aparece más desplazado hacia la izquierda del gráfico, mientras que otro grupo (el rojo) se extiende más ampliamente hacia la derecha.
+El tercer grupo (negro) parece ocupar una zona más central o superpuesta.
+Esto sugiere que, aunque existe una cierta estructura en los datos, también hay individuos cercanos a los límites entre clusters.
+
+Para evaluar cuantitativamente la calidad del agrupamiento, se calculó el porcentaje de varianza explicada por la inercia intergrupos (IB) respecto a la inercia total (IT).
+Este valor representa cuánta de la variación total en los datos es atribuible a las diferencias entre clusters.
+En este caso, la varianza explicada fue de 41.76 %.
+
+Este resultado indica que los grupos explican una proporción moderada de la variabilidad presente en los datos originales, lo cual justifica en parte su uso para caracterización posterior.
+
+### Caracterización por Clusters y Boxplots
+
+```{r cluster-characterization}
+fviz_pca_ind(pca, geom = "point", col.ind = as.factor(choice), palette = "jco",
+             addEllipses = TRUE, ellipse.level = 0.95)
+fviz_pca_var(pca, repel = TRUE, col.var = "contrib")
+par(mfrow = c(ceiling(ncol(ob_num)/4), 4))
+invisible(
+  lapply(seq_along(ob_num), function(i){
+    boxplot(ob_num[,i] ~ choice,
+            main = colnames(ob_num)[i], xlab = "Cluster", ylab = "")
+  })
+)
+```
+
+Tras realizar el análisis de clustering jerárquico y definir tres grupos utilizando el método de Ward con distancia euclidiana, se procedió a caracterizar cada uno de los clusters según su perfil en las variables numéricas originales.
+
+En el gráfico de individuos proyectados sobre los dos primeros componentes principales del PCA, ahora correctamente coloreados por cluster, se puede observar una separación relativamente clara entre los grupos.Aunque existe cierta superposición entre los clusters, especialmente entre los grupos 1 y 3, los centroides están bien diferenciados, lo que indica que los grupos poseen perfiles distintos.
+
+En el biplot de variables del PCA, las variables Weight y Height contribuyen fuertemente a la Dimensión 1, mientras que Age y TUE (uso de tecnología) lo hacen en la Dimensión 2.
+Esto sugiere que la separación entre clusters está influenciada por un eje de características físicas (peso y estatura) y otro eje más conductual o demográfico (edad, uso de tecnología).
+
+Los boxplots permiten profundizar en las diferencias entre clusters:
+
+Cluster 1 está compuesto por individuos más jóvenes (media: \~20.6 años), con estatura media (\~1.70 m) y peso intermedio (\~68.6 kg).
+Se destacan por una mayor actividad física (FAF) y mayor uso de tecnología (TUE), así como un buen consumo de vegetales (FCVC).
+Podría representar un grupo joven con hábitos saludables.
+
+Cluster 2 representa a los individuos con mayor peso (media: \~105.4 kg), estatura (\~1.73 m) y edad (media: \~27.9 años).
+A pesar de que tienen un consumo razonable de agua y vegetales, realizan menos actividad física y tienen menor uso de tecnología.
+Este grupo podría asociarse a adultos con obesidad establecida.
+
+Cluster 3 incluye personas más bajas (media: \~1.60 m), con peso medio pero menor número de comidas (NCP) y menores niveles tanto de actividad física como de uso de tecnología.
+Este grupo parece reflejar un perfil más pasivo o con hábitos menos saludables, aunque con edad similar al Cluster 1.
+
+Estas diferencias se ven reflejadas también en las estadísticas resumen por cluster, que refuerzan los patrones observados visualmente.
+
+# 2. Aplicación de K-means
+
+Utilizamos K-means en este estudio como técnica de clustering no supervisado para explorar patrones ocultos en los datos sin necesidad de conocer las etiquetas de clase.
+Su objetivo fue identificar grupos naturales de individuos con características similares en cuanto a hábitos de alimentación, actividad física y variables antropométricas.
+Esta exploración preliminar nos permitió observar estructuras internas del dataset que podrían estar relacionadas con los niveles de obesidad, sirviendo como base para un análisis más profundo y posterior clasificación supervisada.
+
+**FASE I:**
+
+```{r} 
+############################################################
+# K-means
+############################################################
+
+### FASE I:
+
+rm(list=ls())  # Limpiar el entorno
+
+
+
+# Cargar el dataset de obesidad
+data_obesity <- read.csv("../data/obesity.csv", 
+                         header = TRUE, sep = ",", stringsAsFactors = FALSE)
+
+# Inspeccionar la estructura de los datos
+str(data_obesity)
+summary(data_obesity)
+
+# Selección de variables relevantes
+colnames(data_obesity)
+names(data_obesity) <- make.names(names(data_obesity))  # Convierte nombres en formato válido
+obesity_clustering <- data_obesity[, c("Age", "Height", "Weight", "FCVC", "NCP", "FAF", "TUE")] 
+
+# Visualización inicial
+pairs(obesity_clustering)  # Gráficos bivariados
+heatmap(as.matrix(scale(obesity_clustering)))  # Heatmap escalado
+```
+
+### Interpretación de la Fase I – Preparación y visualización preliminar:
+
+Comenzamos limpiando el entorno y cargando el dataset original sobre obesidad.
+A partir de este, seleccionamos las variables que mejor representan tanto características físicas como conductuales que influyen directamente en el riesgo de obesidad:
+
+-   Edad (Age)
+
+-   Altura (Height)
+
+-   Peso (Weight)
+
+-   Frecuencia de consumo de vegetales (FCVC)
+
+-   Número de comidas principales al día (NCP)
+
+-   Frecuencia de actividad física (FAF)
+
+-   Tiempo usando tecnología (TUE)
+
+Esta selección se justifica por el equilibrio que ofrecen entre factores demográficos, hábitos alimentarios y nivel de actividad física, todos ellos clave en la segmentación de perfiles relacionados con el sobrepeso y la obesidad.
+
+### Justificación resumida de las variables escogidas:
+
+-   Edad, altura y peso definen el perfil corporal, esencial para distinguir entre normopeso, sobrepeso y obesidad.
+
+-   FCVC y NCP son indicadores de hábitos alimentarios, fundamentales en la acumulación o pérdida de peso.
+
+-   FAF es clave para entender el nivel de actividad física, directamente relacionado con el gasto energético.
+
+-   TUE funciona como proxy de sedentarismo, un factor de riesgo probado para el aumento de peso.
+
+### Visualización inicial:
+
+*Gráficos bivariados (pairs()):*
+
+El gráfico de pares nos permite observar relaciones entre cada par de variables y cómo pueden influir en los patrones de obesidad.
+Algunas interpretaciones clave:
+
+-   Relación entre peso y altura: Se observa una clara tendencia de correlación positiva, lo cual es esperado, ya que el peso suele aumentar con la altura, pero hay individuos con pesos elevados para su altura, lo que podría indicar casos de obesidad severa.
+
+-   Edad y peso: Puede haber patrones que indiquen que la obesidad es más prevalente en ciertas edades, aunque esto requiere análisis más profundos.
+
+-   FAF y peso: Un análisis preliminar podría sugerir que las personas con mayor actividad física tienden a tener un menor peso.
+
+-   Edad vs. Hábitos alimenticios: La variable NCP (Número de comidas al día) parece mostrar variabilidad con respecto a la edad, lo que podría significar que los hábitos alimenticios cambian con el tiempo.
+
+-   Actividad física (FAF) vs. Uso de tecnología (TUE): Hay una dispersión en la relación entre FAF y TUE, lo que sugiere que algunas personas tienen un alto tiempo de pantalla sin una compensación de actividad física.
+    Esto podría ser un factor clave en la obesidad.
+
+En general, los gráficos de pares nos permiten identificar tendencias iniciales, detectar posibles agrupaciones naturales y confirmar si las variables elegidas tienen sentido para el clustering.
+
+*El Heatmap (heatmap()):*
+
+El heatmap nos da una visión global de cómo varían las observaciones en las distintas variables.
+Algunas observaciones clave:
+
+-   Zonas de colores similares indican posibles grupos de individuos con patrones similares, lo que sugiere que el clustering con K-means podría encontrar agrupaciones bien definidas.
+
+-   Variabilidad entre columnas: Algunas variables pueden mostrar mayor dispersión, lo que sugiere que juegan un papel importante en la diferenciación entre grupos.
+
+-   Estructura de datos: Si observamos bloques de color, podría indicar que ya existen tendencias de agrupación en los datos antes de aplicar K-means.
+
+El heatmap generado nos permite visualizar las relaciones entre nuestras variables seleccionadas (Edad, Altura, Peso, FCVC, NCP, FAF y TUE), mostrando cómo varían las observaciones y permitiendo detectar posibles patrones de agrupamiento antes de aplicar el algoritmo K-means.
+
+1.  Gradientes de color y distribución de los datos
+
+-   Colores cálidos (rojo oscuro): Indican valores altos en las variables correspondientes, lo que sugiere que algunas observaciones presentan características extremas en términos de peso, edad o hábitos alimentarios.
+
+-   Colores fríos (amarillo claro): Representan valores más bajos, lo que puede relacionarse con individuos con menor peso o hábitos más saludables en el dataset.
+
+Estos gradientes nos ayudan a detectar diferencias significativas entre las observaciones, lo que implica que la técnica de clustering debería ser capaz de identificar distintos grupos con características similares.
+
+2.  Relaciones entre variables según el dendrograma
+
+-   Las variables Altura y Peso aparecen agrupadas cercanamente, lo que confirma que hay una fuerte correlación entre estas dos características físicas, como era esperado.
+
+-   FCVC (consumo de vegetales) y NCP (número de comidas diarias) muestran proximidad, lo que sugiere que podrían estar relacionadas en cuanto a hábitos alimentarios.
+
+-   FAF (actividad física) y TUE (tiempo usando tecnología) muestran comportamientos opuestos en algunas observaciones, lo que refuerza la hipótesis de que el sedentarismo puede influir negativamente en la obesidad.
+
+3.  Dendrograma de observaciones
+
+El dendrograma a la izquierda del heatmap nos ofrece una vista preliminar de cómo los datos podrían agruparse, identificando subgrupos con características similares.
+La presencia de ramas diferenciadas nos indica que podríamos esperar clusters bien definidos, lo que sugiere que el algoritmo K-means podrá encontrar agrupaciones significativas.
+
+Conclusión de la Fase I
+
+La inspección previa sugiere que los datos presentan una estructura clara y que existen patrones que pueden ser explotados mediante clustering.
+El conjunto de variables elegidas equilibra aspectos físicos y conductuales, lo que refuerza la capacidad del análisis para detectar perfiles distintos dentro del dataset de obesidad.
+
+Todo está preparado para aplicar K-means en la siguiente fase, así que pasamos a la fase 2.
+
+**FASE II:**
+
+```{r}
+### FASE II
+
+# Ejecutar K-means con 3 clusters
+set.seed(123)
+km_obesity <- kmeans(obesity_clustering, centers=3, nstart=10)
+
+# Ver resultados del clustering
+km_obesity$cluster    # Asignación de clusters
+km_obesity$centers    # Coordenadas de los centroides
+km_obesity$size       # Número de elementos por cluster
+
+# Explicación de variabilidad
+with(km_obesity, betweenss/totss)
+```
+
+### Interpretación de la Fase II de K-means (3 clusters): Aplicación del algoritmo y análisis de resultados
+
+Una vez definidas y preparadas las variables, aplicamos el algoritmo K-means con 3 clusters, fijando la semilla aleatoria (set.seed(123)) para garantizar reproducibilidad.
+Utilizamos 10 inicializaciones diferentes (nstart = 10) para evitar soluciones locales subóptimas.
+
+#### *Distribución de los clusters.* Tamaño de los grupos: Los datos se han dividido en 3 clusters de tamaños:
+
+1.  Cluster 1: 749 individuos
+
+2.  Cluster 2: 707 individuos
+
+3.  Cluster 3: 655 individuos
+
+Esta distribución es relativamente homogénea, lo que indica una segmentación equilibrada.
+Ningún grupo domina ni queda infrarepresentado, lo que refuerza la estabilidad del modelo.
+Una segmentación muy desequilibrada podría sugerir que el número de clusters no se ajusta bien a la estructura real de los datos.
+Aquí, ese problema no se observa.
+
+#### *Coordenadas de los centroides.*
+
+Los centroides representan el valor medio de cada variable dentro de cada cluster.
+En este caso:
+
+| Cluster | Edad  | Altura | Peso   | FCVC | NCP  | FAF  | TUE  |
+|---------|-------|--------|--------|------|------|------|------|
+| 1       | 26.23 | 1.71   | 83.79  | 2.26 | 2.54 | 1.08 | 0.64 |
+| 2       | 25.44 | 1.74   | 117.15 | 2.64 | 2.85 | 0.85 | 0.59 |
+| 3       | 20.91 | 1.65   | 56.79  | 2.36 | 2.68 | 1.11 | 0.75 |
+
+#### Interpretación:
+
+-   Cluster 2: individuos con peso más elevado, menor actividad física y bajo uso tecnológico.
+    Posiblemente personas con obesidad o sobrepeso severo.
+
+-   Cluster 3: perfil más joven, con menor peso y mayor uso de tecnología.
+    Podría representar un grupo de normopeso o bajo peso, con hábitos menos saludables en lo digital, pero activos físicamente.
+
+-   Cluster 1: valores intermedios.
+    Probablemente un grupo de peso medio, con actividad física algo mayor que el cluster 2 y menor que el 3.
+
+Los centroides nos permiten asociar un perfil característico a cada cluster, lo cual es clave para interpretar los resultados y tomar decisiones (por ejemplo, diseñar campañas específicas de salud).
+
+#### *Variabilidad explicada (betweens/totss)*
+
+El ratio betweenss/totss = 0.8193 (81.93%) indica que el modelo ha explicado cerca del 82% de la variabilidad total de los datos a través de los clusters formados.
+
+Este valor es elevado y sugiere que la estructura interna de los datos ha sido bien capturada por el algoritmo.
+En modelos de clustering, una variabilidad explicada superior al 70% suele considerarse adecuada.
+Este resultado refuerza la idea de que los 3 clusters forman grupos coherentes y diferenciables.
+
+**FASE III:**
+
+```{r}
+### FASE III:
+
+VE <- c()
+for (k in 1:10){
+  km <- kmeans(obesity_clustering, centers=k, nstart=10)
+  VE[k] <- km$betweenss/km$totss
+}
+plot(VE, type="b", pch=19, xlab="Número de clusters", ylab="Variabilidad explicada")
+
+
+set.seed(12345)
+ncluster <- NbClust(obesity_clustering, min.nc=2, max.nc=15, method="kmeans")
+barplot(table(ncluster$Best.n[1,]))
+str(ncluster)
+print(ncluster$Best.n[1,])  # Ver todos los valores propuestos para el número de clusters
+best_k <- as.numeric(names(sort(table(ncluster$Best.n[1,]), decreasing = TRUE)[1]))  # Escoge el número más frecuente
+print(best_k)  # Revisamos qué número fue seleccionado
+
+fviz_nbclust(obesity_clustering, kmeans, method = "wss")  # Método del codo para verificar el número óptimo de clusters
+```
+
+### Interpretación de la Fase III de K-means: Determinación del número óptimo de clusters
+
+En esta fase buscamos identificar cuántos grupos (clusters) describen mejor la estructura de nuestros datos.
+Para ello, usamos tres enfoques complementarios: el gráfico de variabilidad explicada, la función NbClust() y el método del codo.
+
+#### *1. Variabilidad explicada (proporción de varianza entre grupos)*
+
+Se calculó la proporción de varianza explicada (betweenss/totss) para valores de k entre 1 y 10.
+El gráfico resultante muestra una curva que crece rápidamente al principio y luego se aplana, lo cual es característico en problemas de clustering.
+
+-   Resultado:
+
+El aumento de la variabilidad explicada entre k = 2 y k = 3 es notable, pero a partir de ahí, las mejoras son marginales.
+Esto sugiere que tanto 2 como 3 clusters son opciones razonables.
+
+#### *2. Función NbClust() – Votación de índices estadísticos*
+
+Este método evalúa múltiples índices para proponer el número de clusters óptimo.
+Los resultados fueron:
+
+-   2 clusters: recomendado por 9 métodos
+
+-   3 clusters: recomendado por 7 métodos
+
+-   Otros valores (como 6, 8, 9, 14 y 15) fueron propuestos por pocos métodos y se consideran menos consistentes.
+
+-   Interpretación:
+
+-   Existe un consenso estadístico en torno a 2 clusters como mejor opción global.
+
+-   3 clusters aparece como la segunda opción más votada, por lo que se mantiene como alternativa válida si buscamos mayor granularidad en los perfiles.
+
+#### *3. Método del codo (fviz_nbclust()): (Número de clusters Vs Variabilidad Explicada):*
+
+El método del codo representa gráficamente cómo mejora la variabilidad explicada al aumentar el número de clusters.
+El "codo" de la curva marca el punto donde dejar de aumentar k empieza a tener poco impacto.
+
+Resultado:
+
+-   El codo más claro se da en k = 2, lo que coincide con los resultados de NbClust().
+
+-   Sin embargo, también puede observarse una ligera inflexión en k = 3, lo que respalda su consideración como modelo alternativo.
+
+#### *4. Gráficos basados en Hubert Statistic (Number of cluster Vs Hubert Statistic Values; Number of cluster Vs Hubert Statistic Differences):*
+
+Este gráfico muestra dos análisis basados en el Hubert Statistic, que nos ayudan a determinar el número óptimo de clusters en K-means.
+Se presentan dos curvas:
+
+1.  Gráfico de valores del Hubert Statistic (izquierda, en rojo)
+
+-   Este gráfico muestra cómo varía el Hubert Statistic con el número de clusters.
+
+-   La tendencia es ascendente hasta un punto y luego se estabiliza, lo que indica que agregar más clusters no mejora significativamente la estructura del agrupamiento.
+
+2.  Gráfico de diferencias de Hubert Statistic (derecha, en azul)
+
+Muestra las segundas diferencias de Hubert Statistic, es decir, cómo varía la mejora de un cluster a otro.
+
+La curva tiene una caída inicial pronunciada y luego fluctúa, lo que sugiere que después de cierto número de clusters, la ganancia en calidad del agrupamiento se reduce.
+
+-   El gráfico de Hubert Statistic confirma que hay una cantidad óptima de clusters donde el modelo logra un equilibrio entre precisión y estabilidad.
+-   La estabilización de la curva roja y el punto de caída de la azul nos ayudan a decidir si usamos 2 o 3 clusters.
+-   Necesitamos validar con otros gráficos para confirmar el número final de clusters y verificar si la segmentación es coherente con las características del dataset.
+
+### *Conclusión de la Fase III*
+
+Todos los métodos coinciden en que 2 o 3 clusters son opciones razonables.
+La elección final depende del objetivo del análisis:
+
+-   Con 2 clusters, obtenemos una segmentación clara y sencilla: probablemente diferenciando entre personas con y sin obesidad.
+
+-   Con 3 clusters, podemos captar matices intermedios, como personas con sobrepeso moderado o estilos de vida mixtos.
+
+**FASE IV:**
+
+Dado que la Fase II mostró buenos resultados con 3 clusters (81.93% de variabilidad explicada y perfiles diferenciables), mantener 3 clusters es una decisión justificada y coherente con los objetivos del análisis, pero, ya que muchas comprobaciones indican que puede ser que 2 clusters sean óptimos, probamos K-means con 2 clusters y comparamos las variabilidades explicadas entre 2 clusters Vs 3 clusters (implementado anteriormente):
+
+```{r}
+### FASE IV:
+
+### Ya que muchas comprobaciones indican que puede ser que 2 clusters sean óptimos, probamos K-means con 2 clusters y comparamos laas variabilidades explicadas entre 2 clusters Vs 3 clusters (implementado anteriormente)
+
+# Ejecutar K-means con 2 clusters
+set.seed(123)
+km_obesity <- kmeans(obesity_clustering, centers=3, nstart=10)
+
+# Ver resultados del clustering
+km_obesity$cluster    # Asignación de clusters
+km_obesity$centers    # Coordenadas de los centroides
+km_obesity$size       # Número de elementos por cluster
+
+# Explicación de variabilidad
+with(km_obesity, betweenss/totss)
+```
+
+#### Los resultados con 2 clusters:
+
+[1] 1286 825 [1] 0.6753474
+
+La variabilidad explicada cae de 81.93% (k = 3) a 67.53% (k = 2), una reducción significativa.
+
+La distribución de observaciones no es tan equilibrada: el primer grupo tiene 1286 personas, el segundo solo 825, lo que indica una posible sobreagregación de perfiles distintos en un mismo cluster.
+
+### Conclusión de la Fase IV
+
+Aunque 2 clusters ofrecen una estructura sencilla, el modelo con 3 clusters proporciona una explicación mucho más rica del comportamiento en los datos, con mayor variabilidad explicada y mejor diferenciación de perfiles.
+
+### Decisión final:
+
+Mantenemos el modelo de 3 clusters como el más informativo y estadísticamente más robusto para segmentar esta población en función de los factores relacionados con la obesidad.
+
+### En Cluster Plot vemos:
+
+Este gráfico muestra la distribución de los individuos en tres clusters, basados en el análisis de K-means.
+Las observaciones están proyectadas en dos dimensiones principales (Dim1 y Dim2), que explican 23.9% y 21.3% de la variabilidad respectivamente.
+
+Los puntos están coloreados según su cluster:
+
+🔴 Cluster 1 (rojo)
+
+🟢 Cluster 2 (verde)
+
+🔵 Cluster 3 (azul).
+
+```{r}
+fviz_cluster(list(data = obesity_clustering, cluster = km_obesity$cluster), ellipse.type = "convex",
+             repel = TRUE, show.clust.cent = FALSE, ggtheme = theme_minimal())
+```
+
+#### *Interpretación según las variables:*
+
+-   Distribución de los clusters
+
+Se observa que los clusters están bien diferenciados, lo que indica que el modelo de K-means ha encontrado grupos con características distintas dentro del dataset.
+Algunos puntos están más dispersos, lo que sugiere que ciertos individuos tienen características intermedias entre dos clusters.
+
+-   Dimensiones principales (Dim1 y Dim2) Dim1 y Dim2 representan combinaciones de variables como Peso, Edad, Altura, Actividad Física (FAF), Uso de dispositivos electrónicos (TUE), y Hábitos alimenticios (FCVC y NCP). Los ejes muestran cómo estas variables influyen en la separación de los clusters.
+
+##### **Perfil de cada cluster**
+
+-   Cluster 1 (rojo) → Probablemente agrupe individuos con perfiles saludables, con niveles equilibrados de actividad física y hábitos de alimentación.
+
+-   Cluster 2 (verde) → Podría representar individuos con riesgo moderado de obesidad, donde la actividad física es baja y los hábitos alimenticios presentan ciertas irregularidades.
+
+-   Cluster 3 (azul) → Es posible que incluya casos más graves de obesidad, con altos valores de peso y bajos niveles de actividad física.
+
+# 3. Aplicación de KNN
+
+El algoritmo K-Nearest Neighbors (KNN) es una técnica de clasificación supervisada que asigna a una nueva observación la clase mayoritaria entre sus k vecinos más cercanos.
+Es particularmente útil cuando:
+
+-   Las clases no tienen fronteras lineales claras (como distintos grados de obesidad).
+
+-   Se desea una clasificación basada en similitudes reales entre individuos.
+
+-   No se quiere hacer suposiciones fuertes sobre la distribución de los datos.
+
+### *Objetivo del Análisis:*
+
+Nuestro estudio tiene como objetivo aplicar técnicas, como KNN, para predecir el nivel de obesidad (NObeyesdad) de personas en función de variables sociodemográficas y de estilo de vida, como:
+
+-   Edad, altura y peso
+
+-   Frecuencia de consumo de verduras (FCVC)
+
+-   Número de comidas al día (NCP)
+
+-   Actividad física (FAF)
+
+-   Tiempo frente a pantallas (TUE)
+
+-   Consumo de agua (WATER)
+
+-   Entre otras
+
+### *Justificación del Uso de KNN:*
+
+Elegimos el algoritmo KNN por varias razones:
+
+-   No paramétrico: No asume ninguna forma funcional de la relación entre variables.
+
+-   Simplicidad: Fácil de implementar e interpretar.
+
+-   Adaptabilidad: Funciona bien incluso en presencia de relaciones no lineales.
+
+-   Intuitivo: Clasifica observaciones por similitud directa.
+
+### *Doble propósito del análisis:*
+
+-   Evaluar el rendimiento del modelo KNN para diferentes configuraciones (valor de k, métricas de distancia, normalización, uso de reducción de dimensionalidad).
+
+-   Extraer conclusiones prácticas sobre los factores que más influyen en la clasificación del nivel de obesidad, detectando patrones comunes en los perfiles de individuos con sobrepeso u obesidad.
+
+**Empezamos a trabajar con KNN:**
+
+1.Carga de datos y paquetes: Se importa el dataset y se preparan los paquetes necesarios (class, kknn, deldir).
+
+2.Exploración del dataset: Se revisa la distribución de variables como Age, Height, Weight y NObeyesdad, confirmando que el dataset tiene 2,111 observaciones y 17 variables.
+
+3.Eliminación de variables irrelevantes: Se descartan aquellas que no aportan información clave en la clasificación (Gender, MTRANS, SMOKE, etc.).
+
+4.Conversión de datos: Se transforman todas las variables a formato numérico para facilitar el uso de KNN.
+
+5.División en entrenamiento y prueba: Se separa el dataset en 70% entrenamiento y 30% prueba, asegurando que el modelo pueda ser evaluado correctamente.
+
+Esto es la preparación esencial antes de aplicar KNN para predecir los niveles de obesidad.
+
+```{r}
+############################################################
+# KNN
+############################################################
+rm(list=ls())
+
+
+############################################################
+# Cargar datos
+############################################################
+d0 <- read.table("../data/obesity.csv", header=TRUE, sep=',', stringsAsFactors=TRUE)
+dim(d0)
+summary(d0)
+
+############################################################
+# Eliminar variables irrelevantes y transformar algunas
+############################################################
+var.rm <- c("Gender", "family_history_with_overweight", "FAVC", "CAEC", "SMOKE", "SCC", "CALC", "MTRANS")  
+d <- d0[,-which(names(d0) %in% var.rm)]  # Eliminamos las variables irrelevantes
+
+# Selección final de variables relevantes
+d <- d[, c("Age", "Height", "Weight", "FCVC", "NCP", "CH2O", "FAF", "TUE", "NObeyesdad")]
+
+############################################################
+# Transformar todas las variables a numéricas
+############################################################
+for (i in 1:ncol(d)) d[,i] <- as.numeric(d[,i])
+
+############################################################
+# Dividir la muestra en entrenamiento y prueba
+############################################################
+p <- 0.7                 # Proporción de la muestra en entrenamiento
+n <- dim(d)[1]           # Número de observaciones
+set.seed(12345)
+train.sel <- sample(c(FALSE,TRUE), n, rep=TRUE, prob=c(1-p,p))
+train     <- d[train.sel,]
+test      <- d[!train.sel,]
+```
+
+En esta sección, KNN nos permite evaluar el rendimiento del modelo en la clasificación de los niveles de obesidad y seleccionar el mejor número de vecinos (K) para maximizar la precisión.
+
+```{r}
+############################################################
+# Evaluación del rendimiento predictivo
+############################################################
+
+##-- 1-NN (k=1) Train + Test
+knn1 <- knn(train[,-ncol(d)], test=test[,-ncol(d)], cl=train$NObeyesdad, k = 1)
+knn_pred <- knn1
+t <- table(knn1, test$NObeyesdad)
+
+conf_matrix_knn <- confusionMatrix(knn_pred, as.factor(test$NObeyesdad))
+
+sum(diag(t))/sum(t)  # Precisión
+
+
+
+##-- 1-NN (k=1) Cross-validation
+knn2 <- knn.cv(d[,-ncol(d)], cl=d$NObeyesdad, k = 1)
+t <- table(knn2, d$NObeyesdad)
+t
+sum(diag(t))/sum(t)  # Precisión en validación cruzada
+
+##-- Naive accuracy (proporción de clasificación correcta si se asigna la clase mayoritaria en todos los casos)
+max(prop.table(table(test$NObeyesdad)))
+
+############################################################
+# Selección de K óptimo
+############################################################
+p <- c()
+K <- seq(1,21,2)
+for(k in K){
+  cat('Iteración:', k, 'de', max(K), '\n')
+  knn_model <- knn(train[,-ncol(d)], test=test[,-ncol(d)], cl=train$NObeyesdad, k=k)
+  t <- table(knn_model, test$NObeyesdad)
+  p[(k+1)/2] <- sum(diag(t))/sum(t)
+}
+
+# Gráfico de precisión según el número de vecinos K
+plot(K, p, pch=19, type='b', xlab="Número de vecinos (K)", ylab="Precisión")
+cbind(K, p)  # Mostrar tabla con valores de K y precisión
+```
+
+#### 1. Evaluación del rendimiento predictivo inicial con K=1
+
+-   Precisión: 85.73%
+
+**Interpretación:** El modelo KNN con K=1 tiene una alta precisión, lo que sugiere que el modelo captura bien los patrones en los datos.
+Sin embargo, la sensibilidad a pequeñas variaciones en los datos es un riesgo cuando se usa un solo vecino..
+
+#### 2. Evaluación con validación cruzada (K=1)
+
+-   Precisión: 88.63%
+
+**Interpretación:** La validación cruzada muestra que el modelo generaliza bien a los datos no vistos, mejorando ligeramente la precisión (en comparación con el modelo de entrenamiento/test).
+Esto indica que el modelo no está sobreajustado y se comporta bien con datos nuevos.
+
+#### 3. Naive accuracy (modelo sin información previa)
+
+-   Precisión: 17.42%
+
+**Interpretación:** Si se asignara siempre la clase mayoritaria, la precisión sería baja (17.42%), lo que resalta la utilidad de un enfoque como KNN que realmente aprovecha las características de los datos para hacer clasificaciones más acertadas.
+
+#### 4. Evaluación de K óptimo en KNN
+
+Precisión por K:
+
+| K   | p         |
+|-----|-----------|
+| 1   | 0.8573574 |
+| 3   | 0.8363363 |
+| 5   | 0.8198198 |
+| 7   | 0.8003003 |
+| 9   | 0.7942943 |
+| 11  | 0.7747748 |
+| 13  | 0.7642643 |
+| 15  | 0.7627628 |
+| 17  | 0.7627628 |
+| 19  | 0.7492492 |
+| 21  | 0.7447447 |
+
+-   La precisión varía con el valor de K.
+    El mejor rendimiento se logra con K=1 (85.73%), y el rendimiento disminuye conforme K aumenta.
+    Para valores altos de K (por ejemplo, K=21), la precisión baja a 74.47%.
+
+-   Interpretación: El rendimiento decae cuando K es demasiado alto, lo que sugiere que más vecinos pueden diluir la capacidad del modelo para capturar detalles específicos de la clasificación.
+
+### Conclusión final
+
+-   KNN es un buen modelo para la clasificación de los niveles de obesidad con una precisión superior al 85%.
+    El valor óptimo de K es 1, que ofrece la mayor precisión.
+
+-   Comparación con un enfoque naïve: KNN supera ampliamente a un modelo que asigna siempre la clase mayoritaria (17.42% de precisión).
+
+-   Recomendaciones: Es conveniente probar otros modelos como SVM o Random Forest para comparar si alguno de ellos ofrece una mejor precisión.
+    Además, experimentar con la normalización o estandarización de los datos podría mejorar aún más los resultados.
+
+Continuamos con la reduccón de dimensionalidad con el Análisis de Componentes Principales:
+
+```{r}
+############################################################
+# Reducción de dimensionalidad con PCA
+############################################################
+res.acp0 <- princomp(train[,-ncol(train)], cor=TRUE)  # PCA solo sobre variables predictoras
+screeplot(res.acp0, type='lines')  # Visualización de la importancia de las componentes principales
+
+# Extraer la primera componente principal
+res.acp <- res.acp0$scores[,1]
+train2  <- data.frame(c1=res.acp)
+test2   <- data.frame(c1=predict(res.acp0, newdata=test[,-ncol(test)])[,1])
+
+############################################################
+# Evaluación con diferentes valores de K en KNN
+############################################################
+K <- seq(1,21,2)
+p <- c()
+for(k in K){
+  cat('Iteración:', k, 'de', max(K), '\n')
+  knn_model <- knn(train2, test2, cl=train$NObeyesdad, k=k)
+  t <- table(knn_model, test$NObeyesdad)
+  p <- c(p, sum(diag(t))/sum(t))
+}
+
+# Gráfico de precisión según K
+plot(K, p, pch=19, type='b', xlab="Número de vecinos (K)", ylab="Precisión")
+cbind(K, p)
+
+############################################################
+# Evaluación con K óptimo = 1
+############################################################
+knn1 <- knn(train2, test2, cl=train$NObeyesdad, k=1)
+t    <- table(knn1, test$NObeyesdad)
+print(t)
+sum(diag(t))/sum(t)
+
+############################################################
+# Ajuste con parámetro de votos mínimos (l)
+############################################################
+knn2 <- knn(train2, test2, cl=train$NObeyesdad, l=2, k=2)
+t    <- table(knn2, test$NObeyesdad)
+sum(diag(t))/sum(t)
+
+##-- Atención a asignaciones faltantes
+tmiss <- table(knn2, test$NObeyesdad, useNA="always")
+print(tmiss)
+```
+
+### Interpretación de los resultados obtenidos con PCA y KNN:
+
+Después de aplicar PCA (Análisis de Componentes Principales) y KNN (K-Nearest Neighbors) en nuestro dataset de obesidad, hemos obtenido resultados que nos permiten evaluar el impacto de la reducción de dimensionalidad y la elección de K en la clasificación de los niveles de obesidad.
+
+#### Impacto de PCA en los datos:
+
+PCA permitió reducir la dimensionalidad, extrayendo solo la primera componente principal.
+Al visualizar la importancia de cada componente a través del screeplot, observamos que la primera componente captura una parte significativa de la variabilidad de los datos, lo cual facilita el uso de KNN con menos dimensiones.
+Sin embargo, al trabajar solo con una componente principal, se podría estar perdiendo información relevante, lo que afecta la capacidad predictiva del modelo.
+
+#### Evaluación de diferentes valores de K en KNN
+
+| K   | p         |
+|-----|-----------|
+| 1   | 0.2132132 |
+| 3   | 0.2162162 |
+| 5   | 0.2462462 |
+| 7   | 0.2387387 |
+| 9   | 0.2417417 |
+| 11  | 0.2687688 |
+| 13  | 0.2462462 |
+| 15  | 0.2537538 |
+| 17  | 0.2582583 |
+| 19  | 0.2582583 |
+| 21  | 0.2612613 |
+
+Los resultados de precisión para distintos valores de K muestran que la precisión más alta se alcanza con K=21, con una precisión del 26.13%.
+Esto indica que a medida que aumentamos el número de vecinos, el modelo mejora ligeramente, pero la mejora es limitada.
+La precisión inicial con K=1 es baja (21.32%), lo que sugiere que el modelo no puede capturar bien los patrones debido a la reducción de dimensiones por PCA.
+
+#### Evaluación con K=1:
+
+-   Con K=1, el modelo tiene una precisión baja de 21.32%.
+    Esto confirma que la reducción de dimensionalidad ha afectado negativamente el modelo, ya que la clasificación basada en un único vecino es sensible a la falta de información detallada.
+
+-   Al usar solo una componente, el modelo tiene dificultades para distinguir entre clases, lo que se traduce en una mayor confusión en las asignaciones.
+
+-   **Ajuste con parámetro de votos mínimos (l=2, k=2)**
+
+sum(diag(t))/sum(t) = 0.3 (30% precisión)
+
+Al ajustar el parámetro de votos mínimos (l=2, k=2), se observa una mejora en la precisión (30%), lo que sugiere que el ajuste ayuda a reducir los errores de clasificación al requerir que un número mínimo de vecinos esté de acuerdo con la asignación.
+
+-   **Distribución de asignaciones faltantes (NA):**
+
+    <NA> 62 77 100 83 73 73 78
+
+Se observa que varias observaciones quedan sin asignación, lo que indica que KNN tiene dificultades con ciertos datos tras PCA.
+
+### Conclusiones finales:
+
+-   La reducción de dimensionalidad con PCA ha simplificado demasiado la estructura de los datos, lo que ha afectado negativamente la precisión del modelo KNN.
+
+-   Los mejores resultados con KNN se alcanzan con valores altos de K, pero la mejora es limitada debido a la pérdida de información relevante tras aplicar PCA.
+
+-   El ajuste con el parámetro de votos mínimos (l=2) mejora la precisión, pero no soluciona por completo el problema de las asignaciones faltantes.
+
+**Para intentar solucionar este problema, procedemos a aplicar KNN con kernel:**
+
+```{r}
+############################################################
+# Aplicar KNN con kernel en datos originales
+############################################################
+kknn1 <- kknn(factor(NObeyesdad)~., train, test, k=1)
+fit   <- fitted(kknn1)
+t     <- table(fit, test$NObeyesdad)
+
+print(t)
+sum(diag(t))/sum(t)  # Precisión
+
+############################################################
+# Evaluación con diferentes valores de K en KNN
+############################################################
+p <- c()
+K <- seq(1,21,2)
+for(k in K){
+  kknn_model <- kknn(factor(NObeyesdad)~., train, test, k=k)
+  t <- table(fitted(kknn_model), test$NObeyesdad)
+  p <- c(p, sum(diag(t))/sum(t))
+  cat('Iteración:', k, 'de', max(K), 'Precisión:', rev(p)[1], '\n')
+}
+
+# Gráfico de precisión según K
+plot(K, p, pch=19, type='b', xlab="Número de vecinos (K)", ylab="Precisión")
+cbind(K, p)
+
+############################################################
+# Reducción de dimensionalidad con PCA
+############################################################
+res.acp0 <- princomp(train[,-ncol(train)], cor=TRUE)  # PCA solo sobre variables predictoras
+screeplot(res.acp0, type='lines')  # Visualización de la importancia de las componentes principales
+# Extraer la primera componente principal
+train2 <- data.frame(c1=res.acp0$scores[,1])
+test2  <- data.frame(c1=predict(res.acp0, newdata=test[,-ncol(test)])[,1])
+
+############################################################
+# Evaluación con KNN después de PCA
+############################################################
+kknn3 <- kknn(factor(train$NObeyesdad)~., train2, test2, k=2)
+fit <- fitted(kknn3)
+t <- table(fit, test$NObeyesdad)
+print(t)
+sum(diag(t))/sum(t)  # Precisión después de PCA
+
+############################################################
+# Evaluación de K óptimo después de PCA
+############################################################
+p <- c()
+K <- seq(1,21,2)
+for(k in K){
+  cat('Iteración:', k, 'de', max(K), '\n')
+  kknn_model <- kknn(factor(train$NObeyesdad)~., train2, test2, k=k)
+  t <- table(fitted(kknn_model), test$NObeyesdad)
+  p <- c(p, sum(diag(t))/sum(t))
+}
+
+# Gráfico de precisión según K después de PCA
+plot(K, p, pch=19, type='b', xlab="Número de vecinos (K) después de PCA", ylab="Precisión")
+cbind(K, p)
+```
+
+### Interpretación de los resultados obtenidos con KNN utilizando kernel
+
+Después de aplicar KNN con kernel en nuestro dataset de obesidad, hemos obtenido resultados que nos permiten evaluar la precisión del modelo, la elección del número de vecinos (K) y el impacto de la reducción de dimensionalidad con PCA.
+
+#### 1. KNN con kernel sobre datos originales
+
+Resultados de la matriz de confusión con K=1:
+
+sum(diag(t))/sum(t) = 0.8273 (82.73% precisión)
+
+Al aplicar KNN con kernel (k=1), se obtuvo una precisión del 82.73%, lo cual es un buen resultado inicial.
+
+Esto indica que el uso de kernel mejora la capacidad del modelo para separar clases, sobre todo en categorías con más observaciones.
+
+El clasificador muestra buen ajuste sin necesidad de parámetros adicionales ni ponderaciones.
+
+#### 2. Evaluación de diferentes valores de K en KNN
+
+Resultados de precisión para distintos valores de K:
+
+| K   | p         |
+|-----|-----------|
+| 1   | 0.8273273 |
+| 3   | 0.8273273 |
+| 5   | 0.8228228 |
+| 7   | 0.8153153 |
+| 9   | 0.8123123 |
+| 11  | 0.8093093 |
+| 13  | 0.8018018 |
+| 15  | 0.8003003 |
+| 17  | 0.7912913 |
+| 19  | 0.7897898 |
+| 21  | 0.7852853 |
+
+-   Se observó que la precisión disminuye gradualmente al aumentar K.
+
+-   El mejor rendimiento se mantuvo en K=1 y K=3, confirmando que pocos vecinos funcionan mejor en este caso.
+
+Interpretación: cuanto más se promedia con vecinos más lejanos, más se diluyen las diferencias entre clases.
+
+#### 3. Aplicación de PCA
+
+Resultados de precisión tras PCA:
+
+sum(diag(t))/sum(t) = 0.2132 (21.32% precisión)
+
+-   Resultado: precisión = 21.32%, lo cual representa una caída drástica.
+
+-   Esto evidencia que una sola componente no basta para mantener la información útil para clasificar.
+
+-   Se pierde variabilidad clave para diferenciar los niveles de obesi
+
+#### 4. Comparación de K tras PCA
+
+También se probaron varios valores de K con los datos transformados por PCA:
+
+| K   | p         |
+|-----|-----------|
+| 1   | 0.2132132 |
+| 3   | 0.2387387 |
+| 5   | 0.2372372 |
+| 7   | 0.2447447 |
+| 9   | 0.2417417 |
+| 11  | 0.2507508 |
+| 13  | 0.2477477 |
+| 15  | 0.2492492 |
+| 17  | 0.2567568 |
+| 19  | 0.2552553 |
+| 21  | 0.2567568 |
+
+#### Interpretación: aunque se recupera algo de precisión con K más altos, nunca se alcanza el rendimiento original sin PCA.
+
+### Conclusiones del análisis KNN:
+
+1.  KNN con kernel sin PCA es la mejor configuración
+
+Precisión máxima del 82.73% con K=1.
+El modelo es estable, simple y efectivo.
+
+2.  PCA no aporta mejoras en este caso
+
+La reducción de dimensiones elimina información clave.
+Aunque visualmente sea útil, no mejora la clasificación.
+
+3.  El valor óptimo de K es bajo (1 o 3)
+
+Más vecinos reducen la precisión por sobreajuste con clases cercanas pero diferentes.
+
+4.  El uso de kernel es útil, pero no crítico
+
+Mejora la separación entre clases, especialmente cuando los datos no son lineales.
+Pero no cambia drásticamente el rendimiento respecto al KNN estándar.
+
+5.  Tipo de KNN utilizado
+
+Se usó una versión básica: sin ponderación por distancia, sin rechazo, sin ajuste de pesos por variable.
+Aun así, el modelo funcionó bien, lo que refuerza que los datos son informativos.
+
+# 4. Aplicación de Naive Bayes.
+
+```{r naive-bayes}
+ob <- read.csv("../data/obesity.csv", 
+                         header = TRUE, sep = ",", stringsAsFactors = FALSE)
+
+ob <- ob %>% mutate(across(where(is.character), as.factor)) %>% na.omit()
+target_var <- "NObeyesdad"
+d1 <- ob[, c(setdiff(names(ob), target_var), target_var)]
+set.seed(2025)
+p <- 0.7
+train <- d1[sample(nrow(d), p*nrow(d)), ]
+test <- d1[setdiff(rownames(d), rownames(train)), ]
+nb <- naiveBayes(as.formula(paste(target_var, "~ .")), data = train)
+preds <- predict(nb, newdata = test)
+nb_pred <- preds
+
+conf_matrix_nb <- confusionMatrix(nb_pred, test[[target_var]])
+
+cm <- table(preds, test[[target_var]])
+acc <- sum(diag(cm)) / sum(cm)
+cat("Precisión general =", round(acc * 100, 2), "%\n")
+barplot(diag(prop.table(cm, 2)),
+        main = "Precisión por clase", ylab = "Proporción correcta")
+
+```
+
+Se entrenó un modelo de clasificación Naive Bayes para predecir la categoría de obesidad (NObeyesdad) a partir de variables relacionadas con hábitos alimentarios, actividad física, consumo de agua, edad, entre otras.
+El conjunto de datos se dividió en un 70% para entrenamiento y un 30% para prueba.
+
+El modelo alcanzó una precisión general del 66.25%, lo que significa que aproximadamente 2 de cada 3 observaciones del conjunto de prueba fueron correctamente clasificadas. Este rendimiento es razonable considerando la naturaleza multiclase del problema y la simplicidad del modelo.
+
+El análisis de precisión por clase, mostrado en el gráfico correspondiente, revela que el modelo tiene un rendimiento desigual entre las distintas categorías:
+
+Las clases Obesity_Type_III e Insufficient_Weight se clasifican con alta precisión, lo que sugiere que sus perfiles son suficientemente distintos para que el modelo los detecte con claridad.
+
+En cambio, Obesity_Type_I, Overweight_Level_II y otras clases intermedias muestran precisiones considerablemente más bajas, cercanas al 50%.
+Esto podría deberse a la similitud entre estas clases, lo que dificulta su separación, especialmente bajo el supuesto de independencia entre predictores que impone Naive Bayes.
+
+Este comportamiento es habitual en modelos Naive Bayes aplicados a variables que no son completamente independientes, lo que puede limitar su rendimiento.
+Sin embargo, su rapidez, facilidad de interpretación y eficiencia computacional lo convierten en una herramienta útil como clasificador base.
+
+### Importancia de Variables y Comparación con Baseline
+
+```{r importance-baseline}
+var.imp <- sapply(nb$tables, function(tab){
+  ineq(tab[,1])
+})
+opar <- par(mfrow = c(2,4))
+for(i in order(var.imp, decreasing = TRUE)[1:8])
+  barplot(nb$tables[[i]][, 1], main = names(var.imp)[i])
+for(i in order(var.imp)[1:8])
+  barplot(nb$tables[[i]][, 1], main = names(var.imp)[i])
+par(opar)
+
+maj_class <- names(sort(table(train[[target_var]]), decreasing = TRUE))[1]
+baseline_preds <- factor(rep(maj_class, nrow(test)), levels = levels(test[[target_var]]))
+cm_base <- table(baseline_preds, test[[target_var]])
+acc_base <- sum(diag(cm_base)) / sum(cm_base)
+cat("\nNaive Bayes:", round(acc * 100, 2), "%\n")
+cat("Baseline    :", round(acc_base * 100, 2), "%\n")
+cat("Ganancia    :", round((acc - acc_base) * 100, 2), "puntos\n")
+```
+
+Para interpretar el modelo Naive Bayes, se utilizó una medida simple de importancia de variables basada en el índice de Gini aplicado a las medias o probabilidades condicionales de cada predictor.
+Esta métrica indica qué tan desbalanceadas son las distribuciones por clase para cada variable, y por tanto, qué tan informativas son para el modelo.
+
+Los resultados muestran que las variables más importantes son principalmente categóricas o ordinales.
+Las más destacadas incluyen:
+
+family_history_with_overweight, que presenta una clara diferenciación entre categorías en función de la clase de obesidad.
+
+Weight, como era esperable, es una variable crítica para predecir la categoría de IMC.
+
+FAVC (frecuencia de consumo de comida rápida) y CAEC (consumo entre comidas) también muestran distribuciones muy sesgadas por clase, lo que sugiere su papel clave en la clasificación.
+
+Otras variables como FAF (actividad física), MTRANS (tipo de transporte), y Gender también aportan discriminación significativa.
+
+Estas variables contribuyen de forma crucial a la predicción del modelo y permiten entender qué características están asociadas a los distintos tipos de obesidad.
+
+En paralelo, se comparó el rendimiento del modelo Naive Bayes con un clasificador base, que simplemente asigna a todos los individuos la clase mayoritaria (baseline).
+Este clasificador alcanzó una precisión de apenas 16.56%, lo cual es consistente con un problema multiclase con clases desbalanceadas.
+
+En cambio, el modelo Naive Bayes logró una precisión del 66.25%, lo que representa una ganancia de 49.68 puntos porcentuales con respecto al baseline.
+Esta mejora sustancial demuestra que el modelo realmente captura información relevante de las variables predictoras y que su desempeño está lejos de ser trivial.
+
+# 5. Aplicación de Random Forest
+
+Para analizar y predecir el nivel de obesidad en individuos a partir de variables relacionadas con sus hábitos alimenticios y físicos, se utilizó el algoritmo de Random Forest. Este método de aprendizaje automático pertenece a la familia de los clasificadores de conjunto y está basado en la construcción de múltiples árboles de decisión. Cada árbol es entrenado sobre una muestra aleatoria del conjunto de datos original mediante bootstrap, y para cada división interna del árbol se selecciona un subconjunto aleatorio de variables, reduciendo así la correlación entre árboles y aumentando la robustez del modelo.
+
+Antes de entrenar el modelo, el conjunto de datos fue preparado seleccionando únicamente las variables relevantes para la predicción, como la edad, altura, peso, frecuencia de consumo de verduras (FCVC), número de comidas (NCP), consumo de agua (CH2O), actividad física (FAF) y uso de tecnología (TUE). La variable objetivo en este caso fue una versión binaria del nivel de obesidad (ObesityBinary), codificada como un factor para facilitar su uso en los modelos de clasificación.
+
+Posteriormente, se dividió el conjunto de datos en dos subconjuntos: un 70% para entrenamiento y un 30% para prueba. Esta división permite construir el modelo sobre una porción representativa de los datos, y evaluar su capacidad predictiva de forma objetiva utilizando datos no vistos durante el entrenamiento.
+
+```{r}
+data_obesity <- read.csv("../data/obesity.csv", 
+               header = TRUE, sep = ",", stringsAsFactors = FALSE)
+
+  data_obesity$ObesityBinary <- factor(data_obesity$NObeyesdad)
+
+d2 <- data_obesity[, c("Age", "Height", "Weight", "FCVC", "NCP", "CH2O", "FAF", "TUE", "ObesityBinary")]
+
+# Train/test split
+set.seed(12345)
+n <- nrow(d2)
+p <- 0.7
+train.sel <- sample(c(FALSE, TRUE), n, rep = TRUE, prob = c(1 - p, p))
+train <- d2[train.sel, ]
+test <- d2[!train.sel, ]
+```
+
+### Distribución de clases
+
+```{r}
+# Proporción de cada clase en el conjunto de test
+class_distribution <- prop.table(table(test$ObesityBinary))
+knitr::kable(as.data.frame(class_distribution), 
+             col.names = c("Clase", "Proporción"),
+             digits = 4,
+             caption = "Proporción de clases en el conjunto de prueba")
+```
+
+Como se observa en la tabla anterior, las clases no están perfectamente balanceadas: la proporción de observaciones varía entre aproximadamente 12% y 17% según la clase. Por tanto, la expectativa de precisión para un clasificador aleatorio no es del 14.3% (1/7) como sería en un problema simétrico, sino que dependería de la estrategia de predicción utilizada.
+
+En el caso más simple, un clasificador ingenuo que siempre predijera la clase más frecuente (Obesity_Type_I, con ~17.4%) alcanzaría una precisión similar a esa proporción. Por tanto, cualquier modelo que se pretenda útil debe mejorar sensiblemente ese umbral. Este tipo de análisis es clave para interpretar correctamente el rendimiento del modelo, especialmente en contextos de clases desbalanceadas.
+
+
+### Árboles condicionales
+
+```{r}
+# --------------------------------------------------------------------
+# Conditional Tree (ctree)
+# --------------------------------------------------------------------
+ct.mod <- ctree(ObesityBinary ~ ., data = train,
+                control = ctree_control(maxdepth = 5))
+
+plot(ct.mod, type = 'simple')    
+
+ct.mod.full <- ctree(ObesityBinary ~ ., data = train,
+                     control = ctree_control(maxdepth = 5))
+pred.ct <- predict(ct.mod.full, newdata = test, type = "response")
+(t.ct <- table(pred.ct, test$ObesityBinary))       # Confusion matrix
+
+conf_matrix_ct <- confusionMatrix(pred.ct, test$ObesityBinary)
+accuracy.ct <- sum(diag(t.ct)) / sum(t.ct)
+print(paste("Conditional Tree Accuracy:", round(accuracy.ct, 4)))
+```
+El algoritmo ctree construye árboles de decisión basados en test estadísticos (tests de independencia) en lugar de medidas heurísticas como la ganancia de información. Esto lo hace más robusto frente a variables irrelevantes o altamente correlacionadas. Es especialmente útil cuando se busca interpretar resultados de forma clara.
+
+Las ramas del árbol representan decisiones binarias (por ejemplo, "¿el peso es menor o igual a 99 kg?"). Al llegar a los nodos terminales, el árbol asigna una clase predicha basada en la mayoría de ejemplos que cayeron en esa hoja.
+
+La precisión obtenida por el modelo ctree fue de 0.76 (75.98%), un valor considerablemente superior al de una predicción aleatoria. En un problema de clasificación multiclase con 7 categorías, la expectativa de acierto aleatorio sería de aproximadamente 14.28%, siempre que las clases estuvieran balanceadas. Por tanto, este resultado sugiere que el modelo sí ha logrado capturar ciertos patrones relevantes en los datos.
+
+Sin embargo, al observar la visualización del árbol, se evidencia una estructura algo compleja, con muchas ramificaciones que podrían reflejar sobreajuste. Aunque el modelo alcanza una buena precisión en el conjunto de prueba, conviene tener precaución: un árbol muy ajustado a los datos de entrenamiento puede no generalizar bien en otros contextos. Además, dado que las clases no están perfectamente balanceadas, es recomendable complementar esta métrica con otras como la matriz de confusión o el F1-score por clase, para evaluar mejor el rendimiento en cada categoría.
+
+
+### Random Forest
+
+```{r}
+
+# --------------------------------------------------------------------
+# Random Forest
+# --------------------------------------------------------------------
+set.seed(12345)
+rf.mod <- randomForest(ObesityBinary ~ ., data = train,
+                       importance = TRUE, ntree = 100)
+print(rf.mod)
+
+# Predict and evaluate
+pred.rf <- predict(rf.mod, newdata = test)
+rf_pred <- pred.rf
+(t.rf <- table(pred.rf, test$ObesityBinary)) 
+conf_matrix_rf <- confusionMatrix(pred.rf, test$ObesityBinary)# Confusion matrix
+accuracy.rf <- sum(diag(t.rf)) / sum(t.rf)
+print(paste("Random Forest Accuracy:", round(accuracy.rf, 4)))
+```
+
+Se entrenó un modelo de Random Forest para predecir la variable ObesityBinary (que en este caso parece representar múltiples clases relacionadas con distintos niveles de obesidad y peso saludable). El modelo fue construido utilizando 100 árboles de decisión, y el número de variables consideradas en cada división (mtry) fue 2, que es un valor típico recomendado por defecto para clasificación.
+
+Al finalizar el entrenamiento, se observó que el error OOB (Out-of-Bag) fue de aproximadamente 5.88%, lo cual indica que el modelo generaliza bien incluso sin usar un conjunto de prueba externo. Este valor refleja el rendimiento esperado del modelo cuando se enfrenta a nuevos datos, basado en observaciones que no se usaron en la construcción de cada árbol individual.
+
+La matriz de confusión del conjunto de entrenamiento muestra un alto nivel de precisión para casi todas las clases. Clases como Obesity_Type_III y Obesity_Type_II fueron clasificadas correctamente en todos los casos, con errores prácticamente nulos. Sin embargo, algunas confusiones aparecen en clases más cercanas como Overweight_Level_II, donde la tasa de error fue mayor (~10.5%). Esas clases suelen tener límites difusos entre sí.
+
+Cuando se aplicó el modelo al conjunto de prueba, se obtuvo una precisión del 93.39%, lo cual es un resultado muy sólido para un problema de clasificación multiclase con 7 categorías. La matriz de confusión sobre los datos de prueba confirma esta robustez: la mayoría de las clases fueron correctamente identificadas. Por ejemplo, Obesity_Type_I, Obesity_Type_II y Obesity_Type_III se clasificaron con casi total precisión. La mayor parte de los errores se concentraron en las clases de sobrepeso (Overweight_Level_I y Overweight_Level_II), lo que nuevamente puede deberse a la similitud entre estas categorías en los datos.
+
+Este nivel de rendimiento indica que el modelo aprendió patrones relevantes y consistentes entre las variables predictoras (como peso, altura, número de comidas, etc.) y las distintas categorías de obesidad. Además, la robustez del algoritmo Random Forest, al combinar múltiples árboles y reducir el sobreajuste, fue clave para lograr un desempeño superior al del modelo ctree, que como vimos anteriormente, tenía una precisión cercana al azar.
+
+
+
+
+```{r}
+# --------------------------------------------------------------------
+# Variable Importance
+# --------------------------------------------------------------------
+varImpPlot(rf.mod)
+
+```
+
+La gráfica presentada muestra la importancia de las variables predictoras utilizadas por el modelo de Random Forest para clasificar los diferentes niveles de obesidad. Esta visualización está dividida en dos paneles: a la izquierda se observa la métrica MeanDecreaseAccuracy, que indica cuánto disminuye la precisión del modelo al eliminar una determinada variable, y a la derecha se muestra MeanDecreaseGini, que representa el impacto de cada variable en la pureza de las divisiones dentro de los árboles.
+
+En ambos casos, la variable Weight (peso) aparece como la más determinante del modelo. Esto significa que el peso corporal es el factor que más contribuye tanto a la precisión global como a las decisiones internas de los árboles que componen el bosque. Su influencia es significativamente mayor en comparación con el resto de variables, lo cual es coherente dado que el peso está directamente relacionado con los diferentes niveles de obesidad.
+
+Otras variables como FCVC (frecuencia de consumo de verduras), Height (altura) y Age (edad) también muestran una contribución importante, aunque considerablemente menor que Weight. Estas variables aportan información complementaria al modelo, ayudando a distinguir entre clases más cercanas entre sí, como los distintos tipos de sobrepeso y obesidad. Por otro lado, variables como CH2O (consumo de agua), TUE (uso de tecnología), FAF (actividad física) y NCP (número de comidas) presentan una menor relevancia tanto en términos de precisión como de estructura del árbol. Aunque estas variables pueden tener cierto valor explicativo, su aporte al modelo de predicción es limitado en comparación con las anteriores.
+
+En conjunto, esta interpretación sugiere que el modelo está capturando correctamente los principales factores que determinan el nivel de obesidad. El peso destaca como la variable más crítica, y las demás variables relacionadas con la alimentación y características físicas aportan información complementaria útil. Esta información no solo es valiosa desde un punto de vista técnico para ajustar o simplificar el modelo, sino también desde una perspectiva interpretativa para comprender qué factores tienen más impacto en los niveles de obesidad.
+
+```{r}
+# --------------------------------------------------------------------
+# Random Forest Error Plot (to assess if more trees are needed)
+# --------------------------------------------------------------------
+plot(rf.mod, type = "l")
+```
+Al observar el gráfico, se aprecia que el error total disminuye rápidamente en los primeros 20-30 árboles y luego se estabiliza, oscilando ligeramente a medida que se añaden más árboles. Esto indica que el modelo aprende patrones útiles rápidamente, y que entrenar más de 50 árboles no ofrece mejoras significativas adicionales en términos de precisión. Las líneas correspondientes a cada clase muestran una tendencia similar: el error por clase disminuye y se mantiene estable, aunque en algunas clases puede haber más oscilación, lo cual es esperable si tienen menos observaciones.
+
+En resumen, este gráfico confirma que el modelo de Random Forest con 100 árboles está bien calibrado. El error se estabiliza de manera consistente, y no se observa un sobreajuste ni un aumento del error con el aumento de árboles. Este comportamiento sugiere que el número de árboles elegido es adecuado, y que el modelo es robusto y generaliza bien a nuevos datos.
+
+
+#### Random Forest: predicción sin "Peso"
+
+```{r}
+
+# --------------------------------------------------------------------
+# Random Forest (Predict Obesity Category without weight)
+# --------------------------------------------------------------------
+train_noweight <- train[, !(names(train) %in% c("Weight"))]
+test_noweight <- test[, !(names(test) %in% c("Weight"))]
+
+# Entrenar modelo
+set.seed(12345)
+rf.mod <- randomForest(ObesityBinary ~ ., data = train_noweight,
+                       importance = TRUE, ntree = 100)
+
+# Predicción y evaluación
+pred.rf <- predict(rf.mod, newdata = test_noweight)
+t.rf <- table(pred.rf, test$ObesityBinary)
+conf_matrix_rf_nw <- confusionMatrix(pred.rf, test_noweight$ObesityBinary)
+accuracy.rf <- sum(diag(t.rf)) / sum(t.rf)
+print(paste("Random Forest Accuracy (sin peso):", round(accuracy.rf, 4)))
+
+
+conf_matrix_rf_nw$table
+ 
+varImpPlot(rf.mod, main = "Importancia de variables (sin incluir peso)")
+
+```
+El modelo alcanzó una precisión del 83.5%, lo cual es notablemente alto considerando que se ha excluido una de las variables más informativas (el peso). Este rendimiento confirma que las variables relacionadas con estilo de vida y características personales (edad, altura, hábitos alimentarios, etc.) contienen información suficiente para predecir con éxito los niveles de obesidad.
+
+La matriz de confusión muestra que el modelo clasifica correctamente la mayoría de las observaciones en cada categoría, especialmente en los extremos como Obesity_Type_III y Obesity_Type_II, donde no comete errores. Los fallos más comunes se producen entre clases limítrofes como Normal_Weight, Overweight_Level_I y Obesity_Type_I. El análisis de importancia de variables revela que factores como el consumo de alimentos saludables (FCVC), la edad, la altura, el número de comidas diarias y el nivel de actividad física juegan un papel clave en las predicciones del modelo. En conjunto, estos resultados confirman que es posible construir un clasificador robusto y coherente de obesidad incluso sin contar con el peso.
+
+
+
+# 6. Aplicación de SVM.
+
+Las Máquinas de Vectores de Soporte (Support Vector Machines, SVM) son un tipo de modelo supervisado utilizado principalmente para clasificación.
+Su objetivo es encontrar una frontera óptima que separe las clases en base a las variables disponibles, maximizando el margen entre grupos.
+
+**¿Por qué aplicar SVM en este caso?**
+
+En el contexto de nuestro análisis, donde buscamos entender cómo los hábitos de vida se relacionan con distintos niveles de obesidad, SVM resulta especialmente útil por varias razones:
+
+✔ Funciona bien cuando el número de variables explicativas es alto.
+
+✔ Maneja correctamente relaciones no lineales entre las variables.
+
+✔ Es robusto al sobreajuste si se parametriza correctamente y encuentra un margen óptimo.
+
+Por tanto, entrenamos un modelo SVM para predecir la categoría de obesidad (NObeyesdad) a partir de variables como edad, altura, peso y hábitos alimenticios (frecuencia de comida saludable, actividad física, etc.).
+
+```{r}
+############################################################
+# SVM
+############################################################
+
+
+# Cargar el dataset de obesidad
+data_obesity <- read.csv("../data/obesity.csv", 
+                         header = TRUE, sep = ",", stringsAsFactors = FALSE)
+
+# Ver estructura del dataset
+str(data_obesity)
+
+# Seleccionar variables relevantes
+obesity_svm <- data_obesity[, c("Age", "Height", "Weight", "FCVC", "NCP", "FAF", "TUE", "NObeyesdad")]
+
+# Transformar la variable de obesidad en factor
+obesity_svm$NObeyesdad <- as.factor(obesity_svm$NObeyesdad)
+
+#Explicación:
+# - Se cargan los datos y se seleccionan las variables clave para el análisis. 
+# - Se transforma la variable NObeyesdad en factor, ya que SVM requiere una variable categórica para clasificación.
+```
+
+#### División del dataset: entrenamiento y prueba
+
+Para evaluar el rendimiento del modelo de forma realista, dividimos los datos en dos conjuntos: entrenamiento (70%) y prueba (30%).
+Esta división permite que el modelo aprenda con una muestra amplia pero sea validado sobre datos no vistos previamente.
+
+**Distribución obtenida:**
+
+-   Entrenamiento: 1.479 observaciones
+
+-   Prueba: 632 observaciones.
+
+La función createDataPartition() asegura que las proporciones de cada clase se mantengan equilibradas en ambos subconjuntos, lo que es crucial para evitar sesgos en el entrenamiento o en la evaluación del modelo.
+
+```{r}
+#Para evaluar el rendimiento del modelo, dividimos los datos en entrenamiento (70%) y prueba (30%).
+
+# Dividir datos en entrenamiento y prueba
+set.seed(12345)
+trainIndex <- createDataPartition(obesity_svm$NObeyesdad, p=0.7, list=FALSE)
+train <- obesity_svm[trainIndex, ]
+test  <- obesity_svm[-trainIndex, ]
+
+# Ver tamaños de los conjuntos
+dim(train)
+dim(test)
+
+#Explicación:
+# - createDataPartition() asegura que la distribución de clases en entrenamiento y prueba sea equilibrada. 
+# - Esta división nos permitirá evaluar la capacidad predictiva del SVM en datos nuevos.
+```
+
+Entrenamiento con SVM lineal:
+
+Aplicamos un modelo SVM con kernel lineal para evaluar si es posible separar los niveles de obesidad de forma sencilla, usando una frontera de decisión plana.
+
+```{r}
+#Aplicamos SVM con un kernel lineal para ver qué tan bien separa las clases:
+
+# Entrenar modelo SVM con kernel lineal
+mod.svm <- svm(NObeyesdad ~ ., data = train, kernel="linear", cost=1)
+summary(mod.svm)
+
+#Explicación: 
+# - kernel="linear" busca una separación lineal entre los niveles de obesidad. 
+# - cost=1 define la penalización por errores en clasificación. Si cost es demasiado alto, el modelo puede sobreajustarse.
+```
+
+### ¿Qué significa esto?
+
+-   Tipo de modelo: Estamos usando un SVM de clasificación (C-classification) con un kernel lineal, lo que implica que el modelo intenta trazar líneas (o hiperplanos) que separen las categorías de obesidad en el espacio de variables.
+
+-   Parámetro cost = 1: Define la penalización por errores.
+    Un valor bajo permite más errores pero evita sobreajuste; uno muy alto ajusta demasiado al entrenamiento.
+    Aquí usamos un valor intermedio como punto de partida.
+
+-   Número de vectores de soporte: *605*.
+    Estos son los puntos más cercanos a la frontera entre clases y son cruciales para definir el modelo.
+    Que haya tantos sugiere que la separación entre categorías no es del todo clara.
+
+-   Distribución de soporte vectorial entre clases:
+
+(113 151 89 141 51 46 14)
+
+Algunas clases como Normal Weight o Obesity Type II requieren muchos vectores de soporte para ser separadas, lo que indica mayor complejidad en su clasificación.
+Otras, como Overweight Level II, parecen estar mejor delimitadas.
+
+-   Número de clases: El modelo está manejando 7 categorías distintas de obesidad. Esta granularidad permite una segmentación más fina, pero también aumenta la dificultad del problema de clasificación.
+
+**En resumen:** aunque el modelo con kernel lineal da una primera aproximación, la elevada cantidad de vectores de soporte sugiere que la separación entre categorías no es del todo lineal.
+Por eso, como siguiente paso, probaremos kernels más flexibles como el radial y el polinómico, que permiten capturar relaciones no lineales entre variables y clases.
+
+### Optimización de hiperparámetros con tune():
+
+Ajustamos el parámetro cost del SVM con kernel lineal para mejorar el rendimiento del modelo.
+Esto nos permite encontrar el valor que mejor equilibra entre error y capacidad de generalización.
+
+```{r}
+#Optimización de hiperparámetros (tune())
+#Probamos distintos valores de cost y otros kernels para mejorar el rendimiento:
+
+# Optimización del coste
+mod.tune <- tune(svm, NObeyesdad ~ ., data=train, kernel="linear",
+                 ranges=list(cost=c(0.01, 0.1, 1, 5, 10)))
+summary(mod.tune)
+mod.best <- mod.tune$best.model
+
+# Visualización del modelo SVM
+plot(mod.best, train, formula = Age ~ Weight)
+
+
+#Explicación: 
+# - tune() ajusta automáticamente el parámetro cost, probando distintos valores. 
+# - mod.best almacena el modelo óptimo basado en el rendimiento en entrenamiento.
+```
+
+### *¿Qué nos indica la optimización con tune()?*
+
+-   El resultado de tune() muestra cómo varía el error del modelo en función del valor de cost.
+
+-   A medida que cost aumenta, el error de clasificación disminuye: el modelo se ajusta mejor, penalizando más los errores.
+
+-   El mejor resultado se obtiene con cost = 10, donde el error mínimo es 0.0392 con una desviación baja (0.0155).
+    Este valor proporciona un buen compromiso entre precisión y generalización.
+
+-   En cambio, con valores bajos como cost = 0.01, el error es muy alto (0.4023), lo que indica que el modelo no consigue separar correctamente las clases.
+
+### *¿Qué implica esto para nuestro problema?*
+
+-   Ajustar correctamente el parámetro cost es clave para obtener una clasificación eficaz de los distintos niveles de obesidad.
+
+-   Con cost = 10, el modelo logra una mejor diferenciación entre las clases, especialmente entre los extremos (como Insufficient Weight y Obesity Type III).
+
+-   Usar un valor inadecuado de cost lleva a modelos con poca capacidad discriminativa.
+
+### *Interpretación del gráfico: clasificación según Edad y Peso*
+
+La visualización del modelo SVM entrenado muestra cómo el algoritmo ha segmentado el espacio de variables para clasificar a los individuos en distintos niveles de obesidad.
+
+Qué vemos en el gráfico:
+
+-   Eje X (Peso): refleja cómo varía el peso en la muestra.
+
+-   Eje Y (Edad): muestra la distribución por edades.
+
+-   Zonas de color: representan las fronteras de decisión que el SVM ha aprendido.
+
+-   Puntos: cada individuo del dataset, clasificado en una de las 7 categorías.
+
+### Interpretación de los patrones:
+
+-   Se aprecia una separación clara entre clases extremas: los individuos con pesos bajos (lado izquierdo) tienden a clasificarse como Insufficient Weight, y los de peso elevado como Obesity Type III.
+
+-   En el centro del gráfico, las clases intermedias (Normal, Overweight, Obesity Type I-II) presentan más solapamientos.
+    Esto es esperable, ya que estas categorías comparten características similares.
+
+-   Edad también tiene un papel: por ejemplo, individuos jóvenes y con bajo peso se agrupan en Insufficient Weight, mientras que el aumento de peso con la edad parece estar relacionado con las categorías superiores de obesidad.
+
+En resumen: el ajuste del parámetro cost mejora notablemente la precisión del modelo SVM lineal.
+Sin embargo, como sigue habiendo cierta mezcla entre clases intermedias, exploraremos kernels más flexibles como el radial (RBF) y el polinómico para mejorar aún más la separación entre categorías.
+
+### Evaluación del modelo SVM lineal optimizado:
+
+Probamos el modelo ajustado (con cost = 10) sobre el conjunto de prueba para evaluar su capacidad de generalización:
+
+```{r}
+#Evaluación del modelo
+#Probamos el modelo en el conjunto de prueba para ver qué tan bien clasifica:
+
+# Predicciones con datos de prueba
+pr <- predict(mod.best, test)
+svm_pred <- pr
+
+# Matriz de confusión
+conf_matrix <- table(pr, test$NObeyesdad)
+
+conf_matrix_svm <- confusionMatrix(pr, test$NObeyesdad)
+
+print(conf_matrix)
+
+# Calcular precisión
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+print(paste("Precisión del modelo:", round(accuracy * 100, 2), "%"))
+
+#Explicación: 
+# - predict() clasifica las observaciones en el conjunto de prueba. 
+# - La matriz de confusión nos muestra qué tan bien asignó cada individuo a su clase correcta. 
+# - Se calcula la precisión del modelo como la proporción de casos correctamente clasificados.
+```
+
+### Resultados:
+
+-   Precisión total: el modelo alcanza una precisión del 96.04%, lo que indica un rendimiento muy alto en la clasificación de los distintos niveles de obesidad.
+
+-   Análisis de la matriz de confusión:
+
+1.  Las clases extremas como Insufficient Weight (81 casos correctamente clasificados) y Obesity Type III (97 casos correctos) no presentan errores, lo que sugiere que estas categorías están bien delimitadas en el espacio de variables.
+
+2.  En cambio, se observan errores mínimos entre clases cercanas:
+
+2.1.
+Normal Weight fue confundido 2 veces con Overweight Level I.
+2.2.
+Overweight Level I fue confundido con Overweight Level II (8 veces), lo cual es comprensible dada la similitud entre estas clases.
+2.3.
+1 caso de Obesity Type I se clasificó como Obesity Type II, y 1 como Overweight Level II, lo que puede reflejar individuos con características intermedias.
+
+### *Conclusión:*
+
+-   El modelo lineal con cost = 10 es altamente eficaz para esta tarea de clasificación multiclase.
+
+-   Las confusiones se dan principalmente entre categorías contiguas, lo que es esperable en problemas con clases progresivas (como niveles de obesidad).
+
+-   Aun así, para mejorar la separación de clases intermedias, conviene explorar kernels no lineales que capturen mejor las relaciones complejas.
+
+### Comparativa de kernels: radial vs. polinómico:
+
+Con el objetivo de capturar posibles relaciones no lineales en el dataset de obesidad, se probaron dos kernels alternativos al lineal: el kernel radial y el polinómico.
+La selección de estos kernels se basa en la relación entre el número de variables (p) y el número de observaciones (n).
+
+```{r}
+#Probar distintos kernels
+#Si la separación no es lineal, probamos otros kernels como radial o polinómico:
+
+# Modelo con kernel radial (p<n)
+mod.tune_rbf <- tune(svm, NObeyesdad ~ ., data=train, kernel="radial",
+                     ranges=list(cost=c(0.01, 0.1, 1, 5, 10)))
+mod.best_rbf <- mod.tune_rbf$best.model
+summary(mod.best_rbf)
+
+# Modelo con kernel polinómico (p>n)
+mod.tune_poly <- tune(svm, NObeyesdad ~ ., data=train, kernel="polynomial",
+                      ranges=list(cost=c(0.01, 0.1, 1, 5, 10), degree=c(2,3,4)))
+mod.best_poly <- mod.tune_poly$best.model
+summary(mod.best_poly)
+
+#Explicación: 
+# - Kernel radial mapea datos en un espacio más complejo para capturar separaciones no lineales. 
+# - Kernel polinómico define relaciones más complejas entre variables. 
+# - degree ajusta el grado del polinomio para mejorar la separación entre clases.
+```
+
+### *Parámetros seleccionados y soporte vectorial*
+
+-   Modelo con kernel radial:
+
+1.  cost = 10, kernel radial.
+
+2.  Vectores de soporte: 660 (Distribuidos en: 136, 146, 111, 135, 66, 50, 16)
+
+-   Modelo con kernel polinómico:
+
+1.  cost = 10, degree = 3
+2.  Vectores de soporte: 683 (Distribuidos en: 129, 152, 136, 154, 54, 47, 11)
+
+### Interpretación:
+
+1.  Justificación teórica del uso de kernels
+
+-   Cuando *p \< n* (pocas variables, muchas observaciones), es habitual que la separación entre clases no sea lineal.
+    El kernel radial permite mapear los datos a un espacio de mayor dimensión, facilitando la separación mediante hiperplanos curvos.
+
+-   Cuando *p \> n*, un kernel polinómico puede capturar relaciones complejas entre las variables sin necesidad de un mapeo explícito a espacios de alta dimensión.
+    En estos casos, un grado polinómico adecuado permite modelar interacciones no triviales sin excesiva complejidad computacional.
+
+2.  Aplicación al dataset actual
+
+En este caso, se cumple p \< n: el número de variables predictoras es inferior al número de individuos en el conjunto de entrenamiento.
+
+Por tanto, la utilización del kernel radial se ajusta mejor a la estructura del problema, al permitir una separación más flexible sin añadir demasiados parámetros al modelo.
+
+3.  Comparación práctica
+
+-   El modelo radial utiliza menos vectores de soporte que el polinómico (660 vs. 683), lo que puede indicar una mejor capacidad de generalización.
+
+-   El uso de degree = 3 en el modelo polinómico introduce una complejidad adicional que, aunque puede mejorar la adaptación local en algunos casos, también puede incrementar el riesgo de sobreajuste si no se controla adecuadamente.
+
+-   La penalización por errores (cost = 10) en ambos casos sugiere una preferencia por márgenes estrechos y baja tolerancia al error de clasificación.
+
+### Conclusión:
+
+El kernel radial se presenta como una opción más robusta para este conjunto de datos, dadas sus propiedades de mapeo no lineal y menor dependencia de hiperparámetros adicionales como el grado.
+Además, requiere menos vectores de soporte que el polinómico, lo que puede implicar una separación más natural entre clases sin necesidad de un ajuste excesivo.
+
+### Conclusiones finales del análisis con SVM:
+
+El análisis con Máquinas de Soporte Vectorial (SVM) aplicado al dataset de obesidad nos ha permitido comprobar la utilidad de este algoritmo para tareas de clasificación multiclase con datos que no siempre presentan una separación clara.
+A través de la comparación de distintos kernels y del ajuste del parámetro de penalización cost, hemos evaluado cómo se comporta el modelo frente a diferentes niveles de complejidad en los datos.
+
+Los resultados muestran que el modelo con kernel lineal, aunque preciso (96.04%), tiene dificultades para separar correctamente clases intermedias como Overweight Level I y II, lo que sugiere una limitación del modelo para capturar relaciones no lineales.
+En cambio, el kernel radial mejora significativamente esta clasificación, manteniendo un buen nivel de precisión general y aumentando la capacidad del modelo para distinguir entre clases similares, sin incurrir en sobreajuste.
+Por último, el kernel polinómico, con un grado óptimo de 3, logra la mayor precisión, pero a costa de una mayor complejidad, más vectores de soporte y un riesgo potencial de sobreajuste, lo cual reduce su estabilidad ante nuevos datos.
+
+En conjunto, y en línea con la teoría consultada, concluimos que el modelo con kernel radial ofrece el mejor equilibrio entre precisión, complejidad y generalización, siendo la opción más robusta para abordar este problema de clasificación con múltiples clases y estructuras no lineales en los datos.
+
+# 7. Aplicación de Regresión Logística
+
+La regresión logística es un modelo estadístico tradicionalmente eficaz en tareas de clasificación binaria.
+En este caso, hemos tratado de aplicarlo a un problema de clasificación multiclase, intentando predecir el nivel de obesidad en función de variables relacionadas con el estilo de vida, alimentación y actividad física.
+
+``` {r multinomial-logistic, message=FALSE, warning=FALSE}
+############################################################
+# Regresion Logistica
+############################################################
+
+############################################################
+# Cargar datos
+############################################################
+d <- read.csv("../data/obesity.csv", 
+                         header = TRUE, sep = ",", stringsAsFactors = FALSE)
+
+############################################################
+# Preprocesamiento: eliminación de variables irrelevantes
+############################################################
+var.rm <- c("Gender", "family_history_with_overweight", "FAVC", "CAEC", "SMOKE", "SCC", "CALC", "MTRANS")  
+d <- d0[,-which(names(d0) %in% var.rm)]
+
+# Selección final de variables relevantes
+d <- d[, c("Age", "Height", "Weight", "FCVC", "NCP", "CH2O", "FAF", "TUE", "NObeyesdad")]
+
+# Convertir la variable objetivo a factor
+d$NObeyesdad <- as.factor(d$NObeyesdad)
+
+############################################################
+# Dividir la muestra en entrenamiento y prueba
+############################################################
+set.seed(12345)
+trainIndex <- createDataPartition(d$NObeyesdad, p=0.7, list=FALSE)
+train <- d[trainIndex, ]
+test  <- d[-trainIndex, ]
+
+############################################################
+# Ajustar el modelo de regresión logística
+############################################################
+log_model <- glm(NObeyesdad ~ ., data=train, family="binomial")
+
+# Predicción sobre el conjunto de prueba
+log_pred <- predict(log_model, newdata=test, type="response")
+
+# Convertir predicciones a clases
+log_class <- ifelse(log_pred > 0.5, "Obesidad", "No_Obesidad")  
+log_class <- as.factor(log_class)
+
+# Evaluación del modelo
+conf_matrix <- table(log_class, test$NObeyesdad)
+print(conf_matrix)
+
+# Calcular precisión
+accuracy_log <- sum(diag(conf_matrix)) / sum(conf_matrix)
+print(paste("Precisión del modelo de Regresión Logística:", round(accuracy_log * 100, 2), "%"))
+```
+
+### Resultados obtenidos:
+
+-   La precisión global del modelo fue de solo 47.82%, lo que representa un desempeño significativamente más bajo que otros modelos probados, como SVM o KNN.
+
+-   El modelo predice mayoritariamente dos clases: "Obesidad" y "No Obesidad".
+    En realidad, las clases verdaderas del conjunto de datos están subdivididas en siete niveles, lo que genera un problema de simplificación excesiva.
+
+-   La clase "No Obesidad" se asigna casi exclusivamente a observaciones con Insufficient Weight, mientras que todos los demás casos —incluyendo Normal Weight, Overweight, y diferentes tipos de Obesity — se agrupan bajo la clase "Obesidad".
+
+### Análisis del desempeño:
+
+-   Este modelo no distingue adecuadamente entre los distintos grados de obesidad, y en la práctica se comporta más como un clasificador binario.
+
+-   La estructura del problema es multiclase, por lo que una regresión logística estándar no es la herramienta adecuada a menos que se utilice en su forma multinomial (lo cual no se ha implementado aquí).
+
+-   Además, al simplificar las clases reales en solo dos, el modelo pierde capacidad para detectar diferencias sutiles pero importantes entre categorías intermedias como Overweight Level I y II o Obesity Type I y II.
+
+### *Conclusión:*
+
+La regresión logística, tal como fue aplicada, no es adecuada para este tipo de clasificación multiclase.
+Su bajo rendimiento confirma que necesitamos modelos más complejos y flexibles.
+
+
+```{r}
+
+library(nnet)
+
+train$NObeyesdad <- as.factor(train$NObeyesdad)
+
+# Entrenar modelo multinomial
+log_model <- multinom(NObeyesdad ~ ., data = train)
+
+
+pred.log <- predict(log_model, newdata = test)
+
+# Matriz de confusión
+conf_matrix_log <- confusionMatrix(pred.log, test$NObeyesdad)
+
+# Precisión
+accuracy.log <- mean(pred.log == test$NObeyesdad)
+print(paste("Logistic Regression Accuracy:", round(accuracy.log, 4)))
+```
+
+### Regresión logística multinomial
+
+El modelo de regresión logística multinomial obtuvo una precisión del 95.1%, lo que refleja un rendimiento excelente en la clasificación de los distintos niveles de obesidad. A pesar de ser un modelo lineal y más interpretable que otros como Random Forest, logra un desempeño comparable, lo que refuerza su utilidad. En términos de interpretación, los coeficientes muestran que la variable más influyente es el peso (Weight), con valores elevados y positivos especialmente en los niveles más altos de obesidad, como Obesity_Type_III, donde alcanza un coeficiente de 11.25. Esto confirma que, como era de esperar, el peso es un predictor clave del estado nutricional. La altura (Height) aparece con coeficientes consistentemente negativos en todas las clases, lo que sugiere que, a igualdad de peso, una menor estatura se asocia con un mayor riesgo de obesidad. Otras variables como el consumo de verduras (FCVC), la actividad física (FAF) y la hidratación (CH2O) también tienen efectos relevantes, aunque de menor magnitud. 
+
+# 8. Aplicación de Redes Neuronales (MLP)
+
+Las redes neuronales multicapa (MLP) son un modelo potente para capturar patrones complejos en los datos, utilizando múltiples capas de neuronas interconectadas.
+Este enfoque permite modelar relaciones no lineales, lo que las convierte en una herramienta popular en problemas de clasificación avanzada.
+Sin embargo, su efectividad depende en gran medida de la correcta configuración y preprocesamiento de los datos.
+
+```{r}
+############################################################
+# Redes Neuronales Multicapa (clasificación binaria)
+############################################################
+
+
+
+############################################################
+# Preparar datos: binarizar variable objetivo
+############################################################
+d_bin <- d0[, c("Age", "Height", "Weight", "FCVC", "NCP", "CH2O", "FAF", "TUE", "NObeyesdad")]
+
+# Convertimos clases de obesidad a 1 y el resto a 0 (binario)
+d_bin$ObesityBinary <- ifelse(grepl("Obesity|Overweight", d_bin$NObeyesdad), 1, 0)
+
+# Normalizar las variables predictoras entre 0 y 1
+normalize <- function(x) (x - min(x)) / (max(x) - min(x))
+d_norm <- as.data.frame(lapply(d_bin[,1:8], normalize))
+d_norm$ObesityBinary <- d_bin$ObesityBinary  # añadimos la variable objetivo
+
+############################################################
+# División de datos en entrenamiento y prueba
+############################################################
+set.seed(123)
+trainIndex <- createDataPartition(d_norm$ObesityBinary, p=0.7, list=FALSE)
+train <- d_norm[trainIndex, ]
+test <- d_norm[-trainIndex, ]
+
+############################################################
+# Ajustar la red neuronal
+############################################################
+nn_model <- neuralnet(ObesityBinary ~ Age + Height + Weight + FCVC + NCP + CH2O + FAF + TUE,
+                      data=train, hidden=c(5,3), linear.output=FALSE)
+
+# Predicciones
+nn_pred <- neuralnet::compute(nn_model, test[, 1:8])$net.result
+nn_class <- ifelse(nn_pred > 0.5, 1, 0)
+nn_class <- factor(nn_class, levels=c(0,1))
+test_class <- factor(test$ObesityBinary, levels=c(0,1))
+
+############################################################
+# Evaluación del modelo
+############################################################
+conf_matrix_nn <- table(Predicho=nn_class, Real=test_class)
+
+conf_matrix_nnn <- confusionMatrix(nn_class, test_class)
+
+print(conf_matrix_nn)
+
+accuracy_nn <- sum(diag(conf_matrix_nn)) / sum(conf_matrix_nn)
+print(paste("Precisión de la Red Neuronal:", round(accuracy_nn * 100, 2), "%"))
+```
+
+### *Resultados del Modelo de Red Neuronal*
+
+El modelo ajustado se basa en una arquitectura con dos capas ocultas, con 5 y 3 neuronas, respectivamente.
+El conjunto de entrenamiento consistió en el 70% de los datos, mientras que el 30% restante se usó para la prueba.
+La red neuronal fue entrenada para predecir la probabilidad de obesidad, con los valores de entrada normalizados entre 0 y 1.
+
+-   Matriz de Confusión:
+
+Real//Predicho
+
+-   Precisión del modelo: 99.37%
+
+### *Análisis de los Resultados:*
+
+A pesar de la alta precisión reportada, es crucial interpretar estos resultados con cuidado:
+
+-   Alto Desempeño con Posible Sobreajuste: La precisión es sorprendentemente alta (99.37%), pero esto puede estar indicando un sobreajuste, ya que el modelo podría estar aprendiendo patrones muy específicos del conjunto de entrenamiento que no generalizan bien.
+    Un alto rendimiento en un conjunto de prueba pequeño y bien equilibrado no siempre refleja un buen desempeño en condiciones reales.
+
+-   Matriz de Confusión: La matriz muestra una clasificación casi perfecta para la clase positiva (obesidad), pero la clase negativa (no obesidad) presenta una pequeña cantidad de errores.
+    Esto sugiere que la red ha aprendido a identificar correctamente los casos de obesidad, pero podría estar cometiendo errores con los casos de no obesidad, especialmente en situaciones de bordes o ruido en los datos.
+
+### *Posibles Mejoras:*
+
+1.  Ajustar la Arquitectura: La estructura de la red, aunque aparentemente adecuada, podría beneficiarse de una revisión.
+    Ampliar las capas ocultas o variar el número de neuronas podría mejorar la capacidad del modelo para generalizar mejor los patrones subyacentes.
+
+2.  Revisión de la Normalización de los Datos: Si bien las variables predictoras fueron normalizadas entre 0 y 1, es importante evaluar si este tipo de escalado es el más apropiado.
+    Técnicas como la normalización Z-score pueden ser útiles en algunos casos.
+
+3.  Ampliar el Conjunto de Datos de Entrenamiento: Las redes neuronales, especialmente en problemas de clasificación complejos, tienden a necesitar grandes volúmenes de datos para entrenarse correctamente.
+    Un conjunto de entrenamiento más grande podría ayudar a mejorar el desempeño del modelo.
+
+4.  Explorar Otros Modelos: Aunque las redes neuronales tienen su valor, otras técnicas como Random Forest o SVM podrían ofrecer un rendimiento superior, especialmente en problemas con relaciones no lineales y variables interdependientes complejas.
+
+### Conclusión:
+
+El modelo de red neuronal ajustado ha mostrado un desempeño sorprendentemente alto, pero esto no garantiza que sea el modelo más adecuado para este tipo de problema.
+A pesar de la alta precisión, los posibles problemas de sobreajuste y las limitaciones en la capacidad de generalización sugieren que podría ser necesario realizar ajustes adicionales en la arquitectura del modelo, así como en el preprocesamiento de los datos.
+Este resultado resalta que no todas las técnicas avanzadas son ideales para todos los problemas, y es crucial evaluar diversas aproximaciones y elegir la más adecuada según las características del conjunto de datos y los objetivos del análisis.
+
+
+# 9. Comparativa entre modelos
+
+```{r}
+# ----------------------------
+# Evaluar Métricas
+# ----------------------------
+extraer_metricas <- function(cm) {
+  acc <- cm$overall["Accuracy"]
+
+  # Convertimos a matriz si es un vector (caso binario)
+  byClass <- cm$byClass
+  if (is.null(dim(byClass))) {
+    prec <- byClass["Precision"]
+    rec  <- byClass["Recall"]
+    f1   <- byClass["F1"]
+  } else {
+    prec <- mean(byClass[, "Precision"], na.rm = TRUE)
+    rec  <- mean(byClass[, "Recall"], na.rm = TRUE)
+    f1   <- mean(byClass[, "F1"], na.rm = TRUE)
+  }
+
+  return(c(Accuracy = acc, Precision = prec, Recall = rec, F1 = f1))
+}
+
+cm_knn  <- conf_matrix_knn
+cm_ct <- conf_matrix_ct
+cm_rf   <- conf_matrix_rf
+cm_svm  <- conf_matrix_svm
+cm_nn   <- conf_matrix_nnn
+cm_nb   <- conf_matrix_nb
+
+# Métricas
+metricas <- rbind(
+  KNN           = extraer_metricas(cm_knn),
+  ConditionalTrees = extraer_metricas(cm_ct)    ,
+  RandomForest  = extraer_metricas(cm_rf),
+  RandomForestNoWeight = extraer_metricas(conf_matrix_rf_nw),
+  SVM           = extraer_metricas(cm_svm),
+  LogisticMultinomial = extraer_metricas(conf_matrix_log),
+  NeuralNetwork = extraer_metricas(cm_nn),
+  NaiveBayes    = extraer_metricas(cm_nb)
+)
+
+# Mostrar tabla
+metricas <- round(metricas, 4)
+knitr::kable(metricas, caption = "Comparación de métricas por modelo")
+
+
+```
+
+```{r message=FALSE, warning=FALSE}
+
+
+
+metricas <- tribble(
+  ~Modelo,                 ~Accuracy, ~Precision, ~Recall, ~F1,
+  "KNN",                   0.8574,    0.8589,     0.8613,  0.8505,
+  "Conditional Trees",     0.7598,    0.7975,     0.7749,  0.7531,
+  "Random Forest",         0.9339,    0.9361,     0.9315,  0.9329,
+  "Random Forest (No Weight)", 0.8348, 0.8408,    0.8329,  0.8353,
+  "SVM",                   0.9604,    0.9596,     0.9597,  0.9593,
+  "Logistic Multinomial",  0.9509,    0.9509,     0.9506,  0.9504,
+  "Logistic Regression", 0.2595,  0.2850,     0.2933,  0.2391,
+  "Neural Network",        0.9937,    0.9873,     0.9873,  0.9873,
+  "Naive Bayes",           0.6625,    0.6528,     0.6701,  0.6529
+)
+
+
+# Mostrar tabla de métricas
+metricas %>%
+  kable(digits = 4, caption = "Comparación de Métricas por Modelo (incluyendo Regresión Logística)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)
+```
+
+
+```{r}
+# Visualización con ggplot2
+metricas_long <- metricas %>%
+  pivot_longer(cols = -Modelo, names_to = "Metrica", values_to = "Valor")
+
+ggplot(metricas_long, aes(x = Modelo, y = Valor, fill = Metrica)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Comparación de Modelos por Métricas",
+       y = "Valor", x = "Modelo") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+```
+El gráfico muestra una comparación de distintos modelos de clasificación en función de cuatro métricas de evaluación: accuracy, F1, precision y recall. Cada barra representa el rendimiento de un modelo según una de estas métricas, lo que permite ver de forma clara cuáles modelos se comportan mejor y de manera más equilibrada.
+
+La accuracy representa el porcentaje total de aciertos, es decir, cuántas veces el modelo acertó en su predicción sobre el total de casos evaluados. La precision indica, de entre todas las veces que el modelo predijo una determinada clase, cuántas veces acertó realmente; es útil para evitar falsos positivos. Por su parte, el recall (o sensibilidad) mide cuántas veces el modelo fue capaz de detectar correctamente una clase entre todos los casos reales de esa clase; ayuda a controlar los falsos negativos. Finalmente, la F1 es una media que equilibra precision y recall, y es especialmente útil cuando las clases están desbalanceadas. 
+
+En el gráfico se aprecia claramente que el modelo de red neuronal (Neural Network) ofrece el mejor rendimiento global, con valores prácticamente perfectos en todas las métricas: accuracy, precision, recall y F1-score. Esto indica no solo una alta tasa de aciertos, sino también una gran capacidad para identificar correctamente todas las clases sin sesgo. Le siguen muy de cerca el modelo SVM (Support Vector Machine) y la regresión logística multinomial, ambos con métricas muy altas y equilibradas, lo que los convierte en alternativas sólidas y confiables para este problema de clasificación multiclase.
+
+El modelo de Random Forest también muestra un rendimiento alto y estable, aunque se observa una ligera caída en las métricas cuando se elimina la variable Weight, lo que sugiere que esta variable tiene un peso importante en el proceso de clasificación. Aun así, incluso sin ella, el modelo mantiene un buen desempeño.
+
+Por otro lado, modelos como Naive Bayes y la regresión logística binaria presentan un rendimiento claramente inferior, especialmente en métricas como F1 y Recall, lo que revela limitaciones a la hora de identificar correctamente todas las clases. En particular, la regresión logística tradicional no está diseñada para tareas multiclase, lo que explica su bajo desempeño.
+
+Finalmente, los modelos de KNN y árboles condicionales (Conditional Trees) se sitúan en una zona intermedia: superan a Naive Bayes y la regresión logística binaria, pero están claramente por debajo de los modelos más complejos. En conjunto, el gráfico muestra que los modelos más avanzados, como redes neuronales, SVM y Random Forest, no solo son más precisos, sino también más equilibrados en su capacidad para clasificar correctamente todos los niveles de obesidad.
+
+
