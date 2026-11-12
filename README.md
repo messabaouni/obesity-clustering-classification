@@ -12,7 +12,8 @@ It applies factorial, clustering and classification methods to a dataset on obes
 ## Structure
 ```
 data/obesity.csv   dataset
-report/report.Rmd  full report with all code (in Spanish)
+report/report.Rmd   full report with all code (in Spanish)
+report/report.html  rendered report
 ```
 
 ## How to run
@@ -22,8 +23,11 @@ rmarkdown::render("report/report.Rmd")
 Main packages: FactoMineR, factoextra, cluster, NbClust, clValid, flexclust, dendextend, caret, class, kknn, e1071, randomForest, nnet, tm, wordcloud, rvest, tidyverse.
 The text analysis section scrapes a WHO web page, so it needs an internet connection.
 
-## Data
-The dataset appears to be the UCI "Estimation of obesity levels based on eating habits and physical condition" dataset (Palechor & De la Hoz Manotas, 2019). Check the original source's licence before reuse.
+## Reading the report
+The report starts with exploratory and factorial analysis to see how the variables relate, then groups individuals with hierarchical and k-means clustering. The number of clusters is chosen with several criteria, and 2 versus 3 clusters are compared. It ends with supervised KNN classification of the obesity level, with and without PCA. The rendered report is `report/report.html` (in Spanish).
 
-## Author
-Mohammed Essabaouni
+## Data
+The dataset appears to be the UCI "Estimation of obesity levels based on eating habits and physical condition" dataset (Palechor & De la Hoz Manotas, 2019), released under CC BY 4.0. Please cite the original source when reusing it.
+
+## Authors
+Julia Anglada and Mohammed Essabaouni
