@@ -29,5 +29,3 @@ The report starts with exploratory and factorial analysis to see how the variabl
 ## Data
 The dataset appears to be the UCI "Estimation of obesity levels based on eating habits and physical condition" dataset (Palechor & De la Hoz Manotas, 2019), released under CC BY 4.0. Please cite the original source when reusing it.
 
-## Authors
-Julia Anglada and Mohammed Essabaouni
