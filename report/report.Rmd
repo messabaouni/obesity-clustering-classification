@@ -1,6 +1,6 @@
 ---
 title: "Reporte final TCM:  Análisis de la Obesidad"
-author: "Julia Anglada y Mohammed Essabaouni"
+author: "Mohammed Essabaouni"
 output:
   html_document: default
   pdf_document: default
